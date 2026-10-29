@@ -19,7 +19,7 @@ class SanctuaryPageTest extends TestCase
         $this->seed(SaintSeeder::class);
     }
 
-    public function test_the_sanctuary_renders_the_featured_saint_and_gacha_offers(): void
+    public function test_the_sanctuary_renders_the_featured_saint_and_progress(): void
     {
         $this->createPlayer();
 
@@ -28,14 +28,31 @@ class SanctuaryPageTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Sanctuary')
                 ->where('featured.slug', 'san-miguel-arcangel')
-                ->where('costs.single', (int) config('sanctorum.pull_cost'))
-                ->where('costs.ten', (int) config('sanctorum.ten_pull_cost'))
+                ->where('costs.level', (int) config('sanctorum.level_cost_base'))
                 ->where('player.dungeons.total', 3)
                 ->where('player.dungeons.open', 1)
                 ->where('player.dungeons.deepest', 0)
-                ->has('rates', 5)
+                ->missing('rates')
+                ->missing('recent')
                 ->has('banner')
                 ->has('rarityProgress', 5));
+    }
+
+    public function test_the_summon_page_renders_the_gacha_offers(): void
+    {
+        $this->createPlayer();
+
+        $this->get('/orar')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Gacha')
+                ->where('featured.slug', 'san-miguel-arcangel')
+                ->where('costs.single', (int) config('sanctorum.pull_cost'))
+                ->where('costs.ten', (int) config('sanctorum.ten_pull_cost'))
+                ->where('player.pity_max', (int) config('sanctorum.pity'))
+                ->has('rates', 5)
+                ->has('banner')
+                ->has('recent'));
     }
 
     public function test_the_collection_team_and_dungeon_pages_render(): void

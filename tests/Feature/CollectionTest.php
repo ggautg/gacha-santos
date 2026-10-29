@@ -51,7 +51,7 @@ class CollectionTest extends TestCase
 
         $this->postJson("/santos/{$saint->slug}/iluminar")
             ->assertStatus(422)
-            ->assertJsonPath('errors.level.0', 'Todavía no has invocado a este santo.');
+            ->assertJsonPath('errors.level.0', 'Todavía no se te ha revelado este santo.');
     }
 
     public function test_lighting_up_requires_enough_grace(): void
@@ -61,7 +61,7 @@ class CollectionTest extends TestCase
 
         $this->postJson("/santos/{$copy->saint->slug}/iluminar")
             ->assertStatus(422)
-            ->assertJsonPath('errors.level.0', 'Necesitas 135 de Gracia para iluminar a este santo.');
+            ->assertJsonPath('errors.level.0', 'Necesitas 135 Puntos de Fe para iluminar a este santo.');
     }
 
     public function test_unowned_saints_are_completely_veiled(): void

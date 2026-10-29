@@ -57,7 +57,7 @@ class EnsurePlayer
                 ]);
             }
 
-            $player->team = $starters->pluck('id')->all();
+            $player->team = $starters->take(3)->pluck('id')->all();
             $player->save();
 
             return $player;

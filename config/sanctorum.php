@@ -7,8 +7,8 @@ return [
     | Moneda y economía
     |--------------------------------------------------------------------------
     */
-    'currency' => 'Gracia',
-    'starting_grace' => 900,
+    'currency' => 'Puntos de Fe',
+    'starting_grace' => 0,
     'pull_cost' => 60,
     'ten_pull_cost' => 540,
     'free_pull_hours' => 6,
@@ -33,7 +33,7 @@ return [
     // Tiradas sin 4★ o superior antes del pity menor
     'ten_pity' => 10,
 
-    // Gracia devuelta al obtener un santo repetido
+    // Puntos de Fe devueltos al obtener un santo repetido
     'duplicate_grace' => [
         1 => 10,
         2 => 20,
@@ -43,9 +43,10 @@ return [
     ],
 
     'starter_slugs' => [
-        'san-isidro-labrador',
-        'santa-zita',
-        'san-pancracio',
+        'san-juan-evangelista',
+        'san-mateo-apostol',
+        'san-lucas-evangelista',
+        'san-marcos-evangelista',
     ],
 
     /*

@@ -98,7 +98,7 @@ class CollectionController extends Controller
 
             if (! $copy) {
                 throw ValidationException::withMessages([
-                    'level' => 'Todavía no has invocado a este santo.',
+                    'level' => 'Todavía no se te ha revelado este santo.',
                 ]);
             }
 
@@ -114,7 +114,7 @@ class CollectionController extends Controller
 
             if ($player->grace < $cost) {
                 throw ValidationException::withMessages([
-                    'level' => 'Necesitas '.$cost.' de Gracia para iluminar a este santo.',
+                    'level' => 'Necesitas '.$cost.' Puntos de Fe para iluminar a este santo.',
                 ]);
             }
 

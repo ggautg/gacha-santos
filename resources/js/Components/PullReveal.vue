@@ -32,7 +32,7 @@ const title = computed(() => {
     }
 
     if (best.value === 3) {
-        return 'El cielo concede su gracia';
+        return 'El cielo responde a tu oración';
     }
 
     return 'Los santos escuchan tu plegaria';
@@ -59,14 +59,14 @@ onBeforeUnmount(() => {
 
 <template>
     <Teleport to="body">
-        <div class="reveal" :style="{ '--reveal-glow': glow }" role="dialog" aria-modal="true" aria-label="Resultado de la invocación">
+        <div class="reveal" :style="{ '--reveal-glow': glow }" role="dialog" aria-modal="true" aria-label="Resultado de la oración">
             <div class="reveal-burst" aria-hidden="true"></div>
 
             <h2 class="reveal-title">{{ title }}</h2>
 
             <p class="reveal-note">
                 {{ freshCount }} nuevo(s) · {{ cards.length - freshCount }} repetido(s)
-                <template v-if="free"> · Invocación gratuita consumida</template>
+                <template v-if="free"> · Oración gratuita consumida</template>
             </p>
 
             <div class="reveal-grid">

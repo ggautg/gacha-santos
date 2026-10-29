@@ -14,7 +14,7 @@ use Illuminate\Validation\ValidationException;
 class GachaService
 {
     /**
-     * Realiza una o diez invocaciones y devuelve las cartas obtenidas.
+     * Realiza una o diez oraciones y devuelve las cartas obtenidas.
      */
     public function pull(Player $player, int $count = 1, bool $free = false): array
     {
@@ -30,7 +30,7 @@ class GachaService
 
             if ($cost > 0 && $player->grace < $cost) {
                 throw ValidationException::withMessages([
-                    'gacha' => 'No tienes suficiente Gracia. Gana más descendiendo a las mazmorras.',
+                    'gacha' => 'No tienes suficientes Puntos de Fe. Gana más descendiendo a las mazmorras.',
                 ]);
             }
 

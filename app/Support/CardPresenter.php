@@ -84,7 +84,7 @@ final class CardPresenter
             'patronage' => null,
             'region' => null,
             'quote' => 'Su rostro aguarda en el santuario.',
-            'bio' => 'Un santo que todavía no has invocado. Su historia permanece oculta tras el velo.',
+            'bio' => 'Un santo que todavía no se te ha revelado. Su historia permanece oculta tras el velo.',
             'stats' => null,
             'skill' => null,
             'base_power' => null,

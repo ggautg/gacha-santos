@@ -317,7 +317,7 @@ class BattleService
             't' => 'cast',
             'actor' => $actorId,
             'name' => $actor['skillName'],
-            'text' => $actor['short'].' invoca «'.$actor['skillName'].'».',
+            'text' => $actor['short'].' eleva «'.$actor['skillName'].'».',
         ];
 
         switch ($actor['skillType']) {

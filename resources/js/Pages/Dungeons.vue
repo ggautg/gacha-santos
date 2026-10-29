@@ -25,7 +25,7 @@ defineProps({
         <div class="btn-row">
             <span class="tag">Mazmorras <strong>{{ dungeons.length }}</strong></span>
             <span class="tag">Piso más hondo <strong>{{ deepest }}</strong></span>
-            <span class="tag">Gracia <strong>{{ player.grace }}</strong></span>
+            <span class="tag">Puntos de Fe <strong>{{ player.grace }}</strong></span>
         </div>
     </header>
 
@@ -86,7 +86,7 @@ defineProps({
                 <div v-if="dungeon.unlocked && dungeon.next" class="dungeon-next-stats">
                     <span class="tag">Vida <strong>{{ dungeon.next.hp }}</strong></span>
                     <span class="tag">Ataque <strong>{{ dungeon.next.atk }}</strong></span>
-                    <span class="tag">Gracia <strong>{{ dungeon.next.grace }}</strong></span>
+                    <span class="tag">Puntos de Fe <strong>{{ dungeon.next.grace }}</strong></span>
                     <span class="tag">XP <strong>{{ dungeon.next.xp }}</strong></span>
                 </div>
 
@@ -126,7 +126,7 @@ defineProps({
                 piso se elige al azar entre el elenco de la mazmorra. Los pisos no terminan y sus
                 criaturas ganan vida, ataque y botín con la profundidad. Elige hasta tres santos en
                 el campamento antes de presentar batalla; si caes, puedes reintentar el mismo piso o
-                abrir una grieta nueva para cambiar el elenco. Los combates no cuestan Gracia.
+                abrir una grieta nueva para cambiar el elenco. Los combates no cuestan Puntos de Fe.
             </p>
         </div>
     </div>

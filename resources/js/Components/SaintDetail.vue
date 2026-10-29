@@ -94,16 +94,16 @@ onBeforeUnmount(() => {
 
                             <p class="quote-block">«Su rostro aguarda en el santuario.»</p>
                             <p class="bio">
-                                Un santo que todavía no has invocado. Ni su nombre, ni su rareza, ni su
+                                Un santo que todavía no se te ha revelado. Ni su nombre, ni su rareza, ni su
                                 historia pueden leerse mientras el velo cubra su retrato.
                             </p>
 
                             <div class="mystery-box">
                                 <span class="mystery-mark" aria-hidden="true">?</span>
                                 <div>
-                                    <strong>El velo se rompe al invocar</strong>
+                                    <strong>El velo se rompe al orar</strong>
                                     <p>
-                                        Cada invocación puede revelar a este santo. Hasta entonces, su
+                                        Cada oración puede revelar a este santo. Hasta entonces, su
                                         identidad permanece en secreto.
                                     </p>
                                 </div>
@@ -180,7 +180,7 @@ onBeforeUnmount(() => {
                                     <span class="panel-note">
                                         <template v-if="maxed">No necesita más luz.</template>
                                         <template v-else>
-                                            Iluminar cuesta <strong class="gold">{{ cost }}</strong> de Gracia.
+                                            Iluminar cuesta <strong class="gold">{{ cost }}</strong> Puntos de Fe.
                                         </template>
                                     </span>
                                     <button
@@ -191,14 +191,14 @@ onBeforeUnmount(() => {
                                     >
                                         <span v-if="busy">Iluminando…</span>
                                         <span v-else-if="maxed">Nivel máximo</span>
-                                        <span v-else-if="!affordable">Falta Gracia</span>
+                                        <span v-else-if="!affordable">Faltan Puntos de Fe</span>
                                         <span v-else>Iluminar +1</span>
                                     </button>
                                 </div>
                             </div>
 
                             <div v-else class="owned-locked">
-                                <p>Aún no has invocado a este santo.</p>
+                                <p>Aún no se te ha revelado este santo.</p>
                                 <Link href="/" class="btn btn--ghost btn--sm" style="margin-top: 10px">
                                     Ir al santuario
                                 </Link>

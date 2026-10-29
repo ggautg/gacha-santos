@@ -40,7 +40,7 @@ return new class extends Migration
             $table->id();
             $table->uuid('token')->unique();
             $table->string('name', 32)->default('Peregrino');
-            $table->unsignedInteger('grace')->default(600);
+            $table->unsignedInteger('grace')->default(0);
             $table->unsignedTinyInteger('pity')->default(0);
             $table->unsignedTinyInteger('ten_pity')->default(0);
             $table->unsignedInteger('depth')->default(0);

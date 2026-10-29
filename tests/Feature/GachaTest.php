@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Player;
 use App\Models\Saint;
 use App\Models\SaintCopy;
 use Database\Seeders\SaintSeeder;
@@ -72,7 +73,7 @@ class GachaTest extends TestCase
 
         $this->postJson('/gacha', ['count' => 1])
             ->assertStatus(422)
-            ->assertJsonPath('errors.gacha.0', 'No tienes suficiente Gracia. Gana más descendiendo a las mazmorras.');
+            ->assertJsonPath('errors.gacha.0', 'No tienes suficientes Puntos de Fe. Gana más descendiendo a las mazmorras.');
     }
 
     public function test_the_free_pull_can_only_be_used_once_per_window(): void
@@ -113,5 +114,29 @@ class GachaTest extends TestCase
             900 - config('sanctorum.pull_cost') + $refund,
             $player->fresh()->grace,
         );
+    }
+
+    public function test_a_new_player_receives_the_four_evangelists_and_a_team_of_three(): void
+    {
+        $this->get('/')->assertOk();
+
+        $player = Player::query()->latest('id')->firstOrFail();
+        $copies = SaintCopy::with('saint')
+            ->where('player_id', $player->id)
+            ->get();
+
+        $this->assertCount(4, $copies);
+        $this->assertSame(0, $player->grace);
+        $this->assertEqualsCanonicalizing(
+            config('sanctorum.starter_slugs'),
+            $copies->pluck('saint.slug')->all(),
+        );
+
+        $this->assertCount(3, $player->teamIds());
+        $this->assertSame([
+            'san-juan-evangelista',
+            'san-mateo-apostol',
+            'san-lucas-evangelista',
+        ], Saint::whereIn('id', $player->teamIds())->orderBy('sort')->pluck('slug')->all());
     }
 }

@@ -152,6 +152,8 @@ class DungeonTest extends TestCase
 
     public function test_a_loss_keeps_the_same_floor_and_only_pays_partial_grace(): void
     {
+        mt_srand(20261029);
+
         $player = $this->createPlayer(['grace' => 0]);
         $team = $this->equip($player, level: 1, copies: 1, amount: 1);
         $encounter = DungeonRules::encounter($player, 'pecados');

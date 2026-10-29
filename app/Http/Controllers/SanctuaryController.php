@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Player;
-use App\Models\Pull;
 use App\Models\Saint;
 use App\Models\SaintCopy;
 use App\Support\CardPresenter;
@@ -25,21 +24,6 @@ class SanctuaryController extends Controller
             ->where('player_id', $player->id)
             ->get()
             ->keyBy('saint_id');
-
-        $recent = Pull::with('saint')
-            ->where('player_id', $player->id)
-            ->latest('id')
-            ->take(10)
-            ->get()
-            ->map(fn (Pull $pull) => [
-                'id' => $pull->id,
-                'name' => $pull->saint->name,
-                'rarity' => $pull->saint->rarity,
-                'rarity_color' => $pull->saint->rarityColor(),
-                'is_new' => $pull->is_new,
-                'at' => $pull->created_at->format('d/m H:i'),
-                'art' => CardPresenter::artUrl($pull->saint),
-            ]);
 
         $banner = Saint::where('rarity', 5)
             ->orderBy('sort')
@@ -92,8 +76,6 @@ class SanctuaryController extends Controller
             'player' => [
                 'name' => $player->name,
                 'grace' => $player->grace,
-                'pity' => $player->pity,
-                'pity_max' => (int) config('sanctorum.pity'),
                 'free_ready' => $player->freePullReady(),
                 'free_in' => $player->secondsUntilFreePull(),
                 'wins' => $player->wins,
@@ -108,24 +90,11 @@ class SanctuaryController extends Controller
                 ],
             ],
             'featured' => CardPresenter::saint($featured, $copies->get($featured->id)),
-            'recent' => $recent,
             'banner' => $banner,
             'rarityProgress' => $rarityProgress,
             'costs' => [
-                'single' => (int) config('sanctorum.pull_cost'),
-                'ten' => (int) config('sanctorum.ten_pull_cost'),
-                'free_hours' => (int) config('sanctorum.free_pull_hours'),
                 'level' => (int) config('sanctorum.level_cost_base'),
             ],
-            'rates' => collect(config('sanctorum.rates'))
-                ->map(fn ($chance, $rarity) => [
-                    'rarity' => $rarity,
-                    'label' => Saint::RARITIES[$rarity]['label'],
-                    'color' => Saint::RARITIES[$rarity]['color'],
-                    'chance' => round($chance * 100, 1),
-                ])
-                ->sortKeysDesc()
-                ->values(),
         ]);
     }
 }

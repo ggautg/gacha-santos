@@ -465,7 +465,7 @@ async function startFight() {
         play(data.result === 'win' ? 'win' : 'lose');
 
         if (data.result === 'win') {
-            toast.success(`Piso ${data.floor} conquistado: «${data.stage_name}». +${data.rewards.grace} de Gracia.`);
+            toast.success(`Piso ${data.floor} conquistado: «${data.stage_name}». +${data.rewards.grace} Puntos de Fe.`);
         } else {
             toast.error('Has caído en el descenso. Puedes reintentar el mismo piso.');
         }
@@ -675,7 +675,7 @@ const logClass = (entry) => {
 
                     <div v-else class="empty">
                         <strong>Tu santoral está vacío</strong>
-                        <p>Invoca a tu primer santo en el santuario para descender.</p>
+                        <p>Ora por tu primer santo en el santuario para descender.</p>
                         <Link href="/" class="btn btn--gold btn--sm" style="margin-top: 12px">Ir al santuario</Link>
                     </div>
                 </div>
@@ -715,7 +715,7 @@ const logClass = (entry) => {
                         <span class="tag">Ataque <strong>{{ current.atk }}</strong></span>
                         <span class="tag">Defensa <strong>{{ current.def }}</strong></span>
                         <span class="tag">Habilidad <strong>{{ current.skill_name }}</strong></span>
-                        <span class="tag">Gracia <strong>{{ current.grace }}</strong></span>
+                        <span class="tag">Puntos de Fe <strong>{{ current.grace }}</strong></span>
                         <span class="tag">XP <strong>{{ current.xp }}</strong></span>
                     </div>
 
@@ -818,7 +818,7 @@ const logClass = (entry) => {
                     </p>
                 </div>
                 <div class="result-rewards">
-                    <span>Gracia <strong>+{{ result.rewards.grace }}</strong></span>
+                    <span>Puntos de Fe <strong>+{{ result.rewards.grace }}</strong></span>
                     <span>XP <strong>+{{ result.rewards.xp }}</strong></span>
                 </div>
                 <div class="btn-row">

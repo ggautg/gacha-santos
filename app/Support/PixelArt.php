@@ -202,7 +202,7 @@ final class PixelArt
     }
 
     /**
-     * Retrato velado para los santos que aún no se han invocado.
+     * Retrato velado para los santos que aún no se han revelado.
      */
     public static function mystery(string $class = '', string $label = 'Santo velado'): string
     {

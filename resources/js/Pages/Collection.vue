@@ -119,7 +119,7 @@ async function levelUp(saint) {
             <span class="page-kicker">Sanctorum · Santoral</span>
             <h1 class="page-title">El santoral reunido</h1>
             <p class="page-lead">
-                Cada invocación añade un retrato al santoral. Ilumina a tus santos con Gracia para
+                Cada oración añade un retrato al santoral. Ilumina a tus santos con Puntos de Fe para
                 subir su nivel, su poder y sus estadísticas de combate.
             </p>
         </div>
@@ -134,7 +134,7 @@ async function levelUp(saint) {
                     <span :style="{ width: `${percent}%` }"></span>
                 </div>
                 <p class="panel-note" style="margin-top: 6px">
-                    {{ percent }}% de los santos invocados · {{ store.grace }} de Gracia
+                    {{ percent }}% de los santos revelados · {{ store.grace }} Puntos de Fe
                 </p>
             </div>
         </div>
@@ -179,7 +179,7 @@ async function levelUp(saint) {
         <span v-if="veiledCount && !filtersActive" class="dim">
             {{ veiledCount }} velados · su identidad permanece oculta
         </span>
-        <span v-else-if="store.grace < level.base_cost" class="dim">Gana Gracia en las mazmorras para iluminar</span>
+        <span v-else-if="store.grace < level.base_cost" class="dim">Gana Puntos de Fe en las mazmorras para iluminar</span>
     </div>
 
     <div v-if="filtered.length" class="card-grid card-grid--wide">

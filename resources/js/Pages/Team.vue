@@ -249,7 +249,7 @@ function focusRoster() {
         <div ref="rosterPanel" class="panel" style="scroll-margin-top: 96px">
             <div class="panel-head">
                 <h2 class="panel-title">Tu santoral</h2>
-                <span class="panel-note">{{ roster.length }} santos invocados</span>
+                <span class="panel-note">{{ roster.length }} santos revelados</span>
             </div>
             <div class="panel-body">
                 <div class="hint" style="margin-bottom: 14px">
@@ -272,7 +272,7 @@ function focusRoster() {
 
                 <div v-else class="empty">
                     <strong>Tu santoral está vacío</strong>
-                    <p>Invoca a tu primer santo en el santuario para formar un equipo.</p>
+                    <p>Ora por tu primer santo en el santuario para formar un equipo.</p>
                     <Link href="/" class="btn btn--gold btn--sm" style="margin-top: 12px">Ir al santuario</Link>
                 </div>
             </div>

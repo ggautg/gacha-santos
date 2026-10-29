@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', [SanctuaryController::class, 'index'])->name('sanctuary');
 
+Route::get('/orar', [GachaController::class, 'index'])->name('gacha');
+
 Route::get('/retratos/velado', [ArtController::class, 'mystery'])->name('art.mystery');
 Route::get('/retratos/{saint:slug}', [ArtController::class, 'saint'])->name('art.saint');
 Route::get('/enemigos/{key}', [ArtController::class, 'foe'])->name('art.foe');
