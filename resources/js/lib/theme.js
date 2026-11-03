@@ -5,42 +5,15 @@ const THEME_KEY = 'sanctorum.theme';
 const FONT_KEY = 'sanctorum.font.v2';
 
 export const THEMES = [
-    {
-        key: 'clasico',
-        name: 'Sanctorum',
-        note: 'Púrpura y oro',
-        font: 'clasica',
-        accent: '#5a4a9a',
-        accent2: '#f2c94c',
-        ink: '#0b0818',
-    },
-    {
-        key: 'pecados',
-        name: 'Pecados',
-        note: 'Carmesí y oro',
-        font: 'clasica',
-        accent: '#d14a3f',
-        accent2: '#f2c94c',
-        ink: '#150507',
-    },
-    {
-        key: 'goetia',
-        name: 'Goetia',
-        note: 'Violeta y cian',
-        font: 'rubrica',
-        accent: '#8b6cf0',
-        accent2: '#49b8c9',
-        ink: '#0a0716',
-    },
-    {
-        key: 'catacumbas',
-        name: 'Catacumbas',
-        note: 'Verde hueso',
-        font: 'clasica',
-        accent: '#8fb26b',
-        accent2: '#e4d8a8',
-        ink: '#0c110c',
-    },
+    // accent = --gold, accent2 = --line, ink = --panel
+    { key: 'pecados', name: 'Pecados', note: 'Rojo sangre y oro', accent: '#f2b84b', accent2: '#8a2f36', ink: '#2a0e15' },
+    { key: 'goetia', name: 'Goetia', note: 'Violeta arcano', accent: '#b79cff', accent2: '#5a4ec2', ink: '#18153f' },
+    { key: 'catacumbas', name: 'Catacumbas', note: 'Musgo y hueso', accent: '#c9d98c', accent2: '#587a4c', ink: '#192417' },
+    { key: 'gloria', name: 'Gloria', note: 'Azul medianoche y oro', accent: '#f5cf6b', accent2: '#3f5aa8', ink: '#131f44' },
+    { key: 'galilea', name: 'Galilea', note: 'Mar verde azulado', accent: '#5eead4', accent2: '#2f8c82', ink: '#0f2c2a' },
+    { key: 'rosa', name: 'Rosa', note: 'Ciruela y rosa', accent: '#ff9ec9', accent2: '#a04a8a', ink: '#2c1329' },
+    { key: 'alba', name: 'Alba', note: 'Amanecer ámbar', accent: '#ffb347', accent2: '#9a6a2e', ink: '#2a1c0e' },
+    { key: 'requiem', name: 'Réquiem', note: 'Grafito y plata', accent: '#c9d2e3', accent2: '#5b6578', ink: '#181b22' },
 ];
 
 export const FONTS = [

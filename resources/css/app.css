@@ -49,8 +49,16 @@
     --radius: 3px;
     --font-pixel: 'Press Start 2P', 'Courier New', monospace;
     --font-body: 'VT323', 'Courier New', monospace;
+    --glow: #6048be;
+    --bg-top: #0e0b24;
+    --bg-mid: #0a0818;
+    --bg-bottom: #060411;
+    --bg-glow-a: rgba(94, 70, 190, 0.32);
+    --bg-glow-b: rgba(176, 124, 240, 0.14);
+    --bg-glow-c: rgba(60, 100, 170, 0.16);
+    --grid: rgba(176, 160, 255, 0.035);
     --shadow-panel: 0 0 0 2px var(--ink-deep), 0 14px 34px rgba(0, 0, 0, 0.45),
-        inset 0 0 44px rgba(96, 72, 190, 0.12);
+        inset 0 0 44px color-mix(in srgb, var(--glow) 14%, transparent);
 }
 
 * {
@@ -81,21 +89,19 @@ body::before {
     position: fixed;
     inset: 0;
     z-index: -2;
+    background-repeat: no-repeat;
     background-image:
-        radial-gradient(1.5px 1.5px at 12% 18%, rgba(255, 255, 255, 0.55), transparent 60%),
-        radial-gradient(1px 1px at 27% 62%, rgba(196, 176, 255, 0.5), transparent 60%),
-        radial-gradient(1.5px 1.5px at 43% 12%, rgba(255, 240, 190, 0.5), transparent 60%),
-        radial-gradient(1px 1px at 58% 78%, rgba(255, 255, 255, 0.45), transparent 60%),
-        radial-gradient(1.5px 1.5px at 72% 28%, rgba(180, 210, 255, 0.5), transparent 60%),
-        radial-gradient(1px 1px at 88% 58%, rgba(255, 255, 255, 0.4), transparent 60%),
-        radial-gradient(1px 1px at 33% 88%, rgba(255, 255, 255, 0.35), transparent 60%),
-        radial-gradient(1px 1px at 81% 86%, rgba(255, 255, 255, 0.35), transparent 60%),
-        radial-gradient(1200px 700px at 50% -12%, #2a1e5c 0%, transparent 62%),
-        radial-gradient(900px 600px at 88% 8%, rgba(87, 52, 128, 0.45) 0%, transparent 65%),
-        radial-gradient(1000px 700px at 8% 90%, rgba(28, 68, 110, 0.35) 0%, transparent 65%),
-        linear-gradient(180deg, #0d0a20 0%, #0b0818 55%, #080614 100%);
-    background-size: 340px 340px, 280px 280px, 420px 420px, 380px 380px, 460px 460px,
-        300px 300px, 500px 500px, 540px 540px, cover, cover, cover, cover;
+        /* vignette */
+        radial-gradient(ellipse at 50% 40%, transparent 50%, rgba(0, 0, 0, 0.5) 100%),
+        /* tile grid */
+        repeating-linear-gradient(0deg, var(--grid) 0 1px, transparent 1px 48px),
+        repeating-linear-gradient(90deg, var(--grid) 0 1px, transparent 1px 48px),
+        /* soft glows */
+        radial-gradient(1100px 650px at 50% -10%, var(--bg-glow-a), transparent 65%),
+        radial-gradient(800px 560px at 92% 12%, var(--bg-glow-b), transparent 68%),
+        radial-gradient(900px 640px at 6% 96%, var(--bg-glow-c), transparent 68%),
+        /* base */
+        linear-gradient(180deg, var(--bg-top) 0%, var(--bg-mid) 55%, var(--bg-bottom) 100%);
 }
 
 body::after {
@@ -3368,81 +3374,205 @@ p {
    -------------------------------------------------------------------------- */
 
 html[data-theme='pecados'] {
-    --ink: #150507;
-    --ink-deep: #0a0204;
-    --ink-soft: #200a0e;
-    --panel: #2a0e12;
-    --panel-2: #341216;
-    --panel-3: #42181d;
-    --line: #7a2c2e;
-    --line-soft: #511d21;
-    --gold: #f2c94c;
-    --gold-bright: #ffe08a;
-    --gold-deep: #b98a1f;
-    --parchment: #f6e2cf;
-    --muted: #cfa6a2;
-    --muted-2: #98706e;
-}
-
-html[data-theme='pecados'] body::before {
-    background-image:
-        radial-gradient(1.5px 1.5px at 12% 18%, rgba(255, 196, 176, 0.55), transparent 60%),
-        radial-gradient(1px 1px at 32% 66%, rgba(242, 201, 76, 0.45), transparent 60%),
-        radial-gradient(1.5px 1.5px at 58% 24%, rgba(255, 236, 200, 0.45), transparent 60%),
-        radial-gradient(1px 1px at 74% 74%, rgba(255, 176, 150, 0.4), transparent 60%),
-        radial-gradient(1px 1px at 88% 42%, rgba(242, 201, 76, 0.35), transparent 60%),
-        radial-gradient(1200px 700px at 50% -12%, #5c1419 0%, transparent 62%),
-        radial-gradient(900px 600px at 88% 8%, rgba(179, 53, 47, 0.45) 0%, transparent 65%),
-        radial-gradient(1000px 700px at 8% 90%, rgba(120, 20, 28, 0.4) 0%, transparent 65%),
-        linear-gradient(180deg, #1a0608 0%, #120406 55%, #0a0203 100%);
+    --ink: #14060a;
+    --ink-deep: #090205;
+    --ink-soft: #1e0a10;
+    --panel: #2a0e15;
+    --panel-2: #35121a;
+    --panel-3: #431821;
+    --line: #8a2f36;
+    --line-soft: #5a2027;
+    --gold: #f2b84b;
+    --gold-bright: #ffd98a;
+    --gold-deep: #b6812a;
+    --parchment: #f7e4d4;
+    --muted: #d4a9a3;
+    --muted-2: #9c7270;
+    --glow: #b3262f;
+    --bg-top: #1c070c;
+    --bg-mid: #130508;
+    --bg-bottom: #0a0204;
+    --bg-glow-a: rgba(190, 40, 52, 0.34);
+    --bg-glow-b: rgba(242, 153, 74, 0.14);
+    --bg-glow-c: rgba(120, 20, 40, 0.3);
+    --grid: rgba(255, 170, 150, 0.03);
 }
 
 html[data-theme='goetia'] {
-    --ink: #0a0716;
-    --ink-deep: #050310;
-    --ink-soft: #120d26;
-    --panel: #1a1240;
-    --panel-2: #221750;
-    --panel-3: #2a1d61;
-    --line: #5b46a8;
-    --line-soft: #3d2d7a;
+    --ink: #090818;
+    --ink-deep: #04030e;
+    --ink-soft: #100e2c;
+    --panel: #18153f;
+    --panel-2: #201b4e;
+    --panel-3: #29225e;
+    --line: #5a4ec2;
+    --line-soft: #3b3283;
     --gold: #b79cff;
     --gold-bright: #e3d6ff;
-    --gold-deep: #7a5fd6;
-    --parchment: #ece6ff;
-    --muted: #b3a8d9;
-    --muted-2: #897fae;
-}
-
-html[data-theme='goetia'] body::before {
-    background-image:
-        radial-gradient(1.5px 1.5px at 14% 22%, rgba(206, 190, 255, 0.6), transparent 60%),
-        radial-gradient(1px 1px at 30% 58%, rgba(73, 184, 201, 0.55), transparent 60%),
-        radial-gradient(1.5px 1.5px at 48% 14%, rgba(255, 255, 255, 0.5), transparent 60%),
-        radial-gradient(1px 1px at 64% 82%, rgba(183, 156, 255, 0.5), transparent 60%),
-        radial-gradient(1.5px 1.5px at 78% 32%, rgba(73, 184, 201, 0.45), transparent 60%),
-        radial-gradient(1px 1px at 90% 64%, rgba(255, 255, 255, 0.4), transparent 60%),
-        radial-gradient(1200px 700px at 50% -12%, #2c1d63 0%, transparent 62%),
-        radial-gradient(900px 600px at 86% 10%, rgba(73, 184, 201, 0.28) 0%, transparent 65%),
-        radial-gradient(1000px 700px at 10% 88%, rgba(90, 60, 160, 0.42) 0%, transparent 65%),
-        linear-gradient(180deg, #0e0a22 0%, #090615 55%, #050310 100%);
+    --gold-deep: #7a62dc;
+    --parchment: #ece8ff;
+    --muted: #b2aadf;
+    --muted-2: #877fb4;
+    --glow: #6a52e0;
+    --bg-top: #0f0c2c;
+    --bg-mid: #0a0820;
+    --bg-bottom: #05040f;
+    --bg-glow-a: rgba(110, 80, 230, 0.34);
+    --bg-glow-b: rgba(60, 190, 215, 0.16);
+    --bg-glow-c: rgba(150, 70, 200, 0.2);
+    --grid: rgba(180, 170, 255, 0.035);
 }
 
 html[data-theme='catacumbas'] {
-    --ink: #0c110c;
-    --ink-deep: #060906;
-    --ink-soft: #131a12;
-    --panel: #1a2418;
-    --panel-2: #22301f;
-    --panel-3: #2b3c27;
-    --line: #4f6b45;
-    --line-soft: #364a30;
-    --gold: #c7d79a;
-    --gold-bright: #e9f0c8;
-    --gold-deep: #8ca55f;
-    --parchment: #eee8d4;
-    --muted: #b9b8a1;
-    --muted-2: #8a8a76;
+    --ink: #0b100b;
+    --ink-deep: #050805;
+    --ink-soft: #121a11;
+    --panel: #192417;
+    --panel-2: #212f1f;
+    --panel-3: #2a3b27;
+    --line: #587a4c;
+    --line-soft: #3b5333;
+    --gold: #c9d98c;
+    --gold-bright: #ecf3c2;
+    --gold-deep: #8fa856;
+    --parchment: #eee9d6;
+    --muted: #b9bba3;
+    --muted-2: #8a8d76;
+    --glow: #4f7a45;
+    --bg-top: #101710;
+    --bg-mid: #0b110b;
+    --bg-bottom: #060906;
+    --bg-glow-a: rgba(90, 130, 70, 0.28);
+    --bg-glow-b: rgba(201, 217, 140, 0.09);
+    --bg-glow-c: rgba(50, 90, 60, 0.26);
+    --grid: rgba(200, 220, 160, 0.03);
+}
+
+/* New themes */
+
+html[data-theme='gloria'] {
+    --ink: #070d1c;
+    --ink-deep: #03060f;
+    --ink-soft: #0c1530;
+    --panel: #131f44;
+    --panel-2: #1a2858;
+    --panel-3: #23336b;
+    --line: #3f5aa8;
+    --line-soft: #2a3d7a;
+    --gold: #f5cf6b;
+    --gold-bright: #ffeaa8;
+    --gold-deep: #c39a2e;
+    --parchment: #f6f1e1;
+    --muted: #a9b6dc;
+    --muted-2: #7c89b4;
+    --glow: #3a62d0;
+    --bg-top: #0b1530;
+    --bg-mid: #070f24;
+    --bg-bottom: #040813;
+    --bg-glow-a: rgba(60, 100, 210, 0.34);
+    --bg-glow-b: rgba(245, 207, 107, 0.13);
+    --bg-glow-c: rgba(40, 70, 150, 0.28);
+    --grid: rgba(160, 185, 255, 0.035);
+}
+
+html[data-theme='galilea'] {
+    --ink: #061413;
+    --ink-deep: #020a09;
+    --ink-soft: #0a1f1d;
+    --panel: #0f2c2a;
+    --panel-2: #143a37;
+    --panel-3: #1a4945;
+    --line: #2f8c82;
+    --line-soft: #1f615a;
+    --gold: #5eead4;
+    --gold-bright: #b4f5ea;
+    --gold-deep: #2fb5a0;
+    --parchment: #e6f6f1;
+    --muted: #9fc9c1;
+    --muted-2: #6f9a93;
+    --glow: #1f9c90;
+    --bg-top: #08201e;
+    --bg-mid: #061715;
+    --bg-bottom: #030c0b;
+    --bg-glow-a: rgba(30, 160, 150, 0.3);
+    --bg-glow-b: rgba(94, 234, 212, 0.1);
+    --bg-glow-c: rgba(20, 90, 110, 0.28);
+    --grid: rgba(150, 240, 225, 0.03);
+}
+
+html[data-theme='rosa'] {
+    --ink: #150913;
+    --ink-deep: #0a040a;
+    --ink-soft: #1f0e1d;
+    --panel: #2c1329;
+    --panel-2: #391935;
+    --panel-3: #472045;
+    --line: #a04a8a;
+    --line-soft: #6e3262;
+    --gold: #ff9ec9;
+    --gold-bright: #ffd0e4;
+    --gold-deep: #d1639a;
+    --parchment: #fbe6ee;
+    --muted: #d3a9c2;
+    --muted-2: #9c7390;
+    --glow: #b0407f;
+    --bg-top: #1c0d1a;
+    --bg-mid: #130813;
+    --bg-bottom: #090409;
+    --bg-glow-a: rgba(200, 70, 150, 0.3);
+    --bg-glow-b: rgba(255, 158, 201, 0.12);
+    --bg-glow-c: rgba(130, 50, 120, 0.28);
+    --grid: rgba(255, 190, 225, 0.03);
+}
+
+html[data-theme='alba'] {
+    --ink: #130d07;
+    --ink-deep: #080503;
+    --ink-soft: #1d140a;
+    --panel: #2a1c0e;
+    --panel-2: #372512;
+    --panel-3: #463018;
+    --line: #9a6a2e;
+    --line-soft: #684620;
+    --gold: #ffb347;
+    --gold-bright: #ffd899;
+    --gold-deep: #cc8420;
+    --parchment: #f8ead3;
+    --muted: #d0b794;
+    --muted-2: #99805c;
+    --glow: #c4701f;
+    --bg-top: #1c1209;
+    --bg-mid: #130c06;
+    --bg-bottom: #090503;
+    --bg-glow-a: rgba(230, 130, 40, 0.28);
+    --bg-glow-b: rgba(255, 179, 71, 0.12);
+    --bg-glow-c: rgba(150, 70, 30, 0.26);
+    --grid: rgba(255, 200, 140, 0.03);
+}
+
+html[data-theme='requiem'] {
+    --ink: #0a0b0e;
+    --ink-deep: #040506;
+    --ink-soft: #111318;
+    --panel: #181b22;
+    --panel-2: #20242d;
+    --panel-3: #2a2f3a;
+    --line: #5b6578;
+    --line-soft: #3a4150;
+    --gold: #c9d2e3;
+    --gold-bright: #eef2fa;
+    --gold-deep: #8c97ad;
+    --parchment: #eceef3;
+    --muted: #a6adbc;
+    --muted-2: #7a8294;
+    --glow: #5a6685;
+    --bg-top: #12141a;
+    --bg-mid: #0c0d11;
+    --bg-bottom: #060709;
+    --bg-glow-a: rgba(120, 135, 170, 0.22);
+    --bg-glow-b: rgba(201, 210, 227, 0.08);
+    --bg-glow-c: rgba(70, 80, 105, 0.24);
+    --grid: rgba(200, 210, 230, 0.03);
 }
 
 html[data-font='pixel'] {
@@ -3792,8 +3922,7 @@ html[data-theme] .dungeon-head .page-kicker {
     backdrop-filter: blur(10px);
 }
 
-
-
+/* CHANGED: no vertical padding so tabs can touch the bottom border */
 .launcher-top-inner {
     display: flex;
     align-items: center;
@@ -3863,13 +3992,7 @@ html[data-theme] .dungeon-head .page-kicker {
     opacity: 0.66;
 }
 
-.launcher-top-center {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    justify-content: center;
-}
-
+/* NEW: top tabs (replace the old side rail) */
 .launcher-tabs {
     display: flex;
     align-self: stretch;
@@ -3910,6 +4033,13 @@ html[data-theme] .dungeon-head .page-kicker {
 .launcher-tab:focus-visible {
     outline: 2px solid var(--gold-bright);
     outline-offset: -4px;
+}
+
+.launcher-top-center {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    justify-content: center;
 }
 
 .launcher-status {
@@ -5024,7 +5154,6 @@ html[data-theme] .client-module {
 
 @media (max-width: 560px) {
 
-    /* AFTER */
     .launcher-top-inner {
         gap: 0 10px;
         padding: 0 10px;
