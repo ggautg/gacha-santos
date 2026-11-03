@@ -25,10 +25,10 @@ const page = usePage();
 const player = usePlayer();
 
 const nav = [
-    { href: '/', label: 'Inicio', icon: 'M2 7.5 8 2.5l6 5V14H2z M6 14V9.5h4V14' },
-    { href: '/orar', label: 'Orar', icon: 'M8 1.5 9.9 6 14.5 6.7 11.2 9.9 12 14.5 8 12.1 4 14.5 4.8 9.9 1.5 6.7 6.1 6z' },
-    { href: '/coleccion', label: 'Colección', icon: 'M3 2.5h10v11H3z M5.5 2.5v11 M10.5 2.5v11' },
-    { href: '/mazmorras', label: 'Mazmorras', icon: 'M3 2.5h10v11H3z M6 13.5V9a2 2 0 0 1 4 0v4.5 M3 6.5h10' },
+    { href: '/', label: 'Inicio' },
+    { href: '/orar', label: 'Orar' },
+    { href: '/coleccion', label: 'Colección' },
+    { href: '/mazmorras', label: 'Mazmorras' },
 ];
 
 const isActive = (href) => (href === '/' ? page.url === '/' : page.url.startsWith(href));
@@ -124,6 +124,7 @@ function toggleSound() {
         <header class="launcher-top">
             <div class="launcher-top-inner">
                 <div class="launcher-left">
+
                     <Link href="/mazmorras" class="launcher-play" title="Jugar: descender a las mazmorras" @click="onNav">
                         <span class="launcher-play-icon" aria-hidden="true">▶</span>
                         <span class="launcher-play-copy">
@@ -131,7 +132,6 @@ function toggleSound() {
                             <span>Descenso procedural</span>
                         </span>
                     </Link>
-
                     <Link href="/" class="brand launcher-brand" aria-label="Ir al inicio" @click="onNav">
                         <span class="brand-mark" aria-hidden="true">
                             <svg viewBox="0 0 24 24" fill="currentColor">
@@ -144,7 +144,23 @@ function toggleSound() {
                             <span class="brand-sub">Launcher de Santos</span>
                         </span>
                     </Link>
+
+                    
                 </div>
+
+                <nav class="launcher-tabs" aria-label="Navegación principal">
+                    <Link
+                        v-for="item in nav"
+                        :key="item.href"
+                        :href="item.href"
+                        class="launcher-tab"
+                        :class="{ 'is-active': isActive(item.href) }"
+                        :aria-current="isActive(item.href) ? 'page' : undefined"
+                        @click="onNav"
+                    >
+                        {{ item.label }}
+                    </Link>
+                </nav>
 
                 <div class="launcher-top-actions">
                     <span class="grace-chip" :title="freeInLabel">
@@ -186,26 +202,6 @@ function toggleSound() {
                                     <span class="sr-only">Puntos de Fe</span>
                                 </span>
                             </div>
-
-                            <p class="profile-dropdown-label">Navegación</p>
-                            <nav class="profile-menu-nav">
-                                <Link
-                                    v-for="item in nav"
-                                    :key="item.href"
-                                    :href="item.href"
-                                    class="profile-menu-item"
-                                    :class="{ 'is-active': isActive(item.href) }"
-                                    :aria-current="isActive(item.href) ? 'page' : undefined"
-                                    role="menuitem"
-                                    @click="onNav"
-                                >
-                                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" aria-hidden="true">
-                                        <path :d="item.icon" />
-                                    </svg>
-                                    <span>{{ item.label }}</span>
-                                    <span v-if="isActive(item.href)" class="profile-menu-dot" aria-hidden="true"></span>
-                                </Link>
-                            </nav>
 
                             <p class="profile-dropdown-label">Apariencia</p>
                             <div class="profile-themes">
@@ -264,30 +260,6 @@ function toggleSound() {
         </header>
 
         <div class="launcher-body">
-            <nav class="launcher-rail" aria-label="Navegación principal">
-                <Link
-                    v-for="item in nav"
-                    :key="item.href"
-                    :href="item.href"
-                    class="rail-link"
-                    :class="{ 'is-active': isActive(item.href) }"
-                    :aria-current="isActive(item.href) ? 'page' : undefined"
-                    @click="onNav"
-                >
-                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" aria-hidden="true">
-                        <path :d="item.icon" />
-                    </svg>
-                    <span>{{ item.label }}</span>
-                </Link>
-
-                <div class="rail-spacer"></div>
-
-                <div class="rail-foot">
-                    <span class="rail-foot-mark" aria-hidden="true">✦</span>
-                    <span class="rail-foot-label">v1.0</span>
-                </div>
-            </nav>
-
             <main class="launcher-main">
                 <div class="launcher-view">
                     <slot />
