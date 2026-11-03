@@ -156,6 +156,9 @@ class DungeonTest extends TestCase
 
         $player = $this->createPlayer(['grace' => 0]);
         $team = $this->equip($player, level: 1, copies: 1, amount: 1);
+        $run = DungeonRules::run($player, 'pecados');
+        $run->seed = 20261029;
+        $run->save();
         $encounter = DungeonRules::encounter($player, 'pecados');
 
         $response = $this->postJson('/mazmorras/pecados/batalla', ['team' => $team]);
@@ -275,6 +278,147 @@ class DungeonTest extends TestCase
         $this->assertNotSame($run->seed, $fresh->seed);
         $this->assertSame(3, DungeonRules::bestFloor($player, 'pecados'));
         $this->assertSame(3, DungeonRules::clearedCount($player, 'pecados'));
+    }
+
+    public function test_the_camp_exposes_the_procedural_path_of_the_next_floors(): void
+    {
+        $player = $this->createPlayer();
+        $run = DungeonRules::run($player, 'pecados');
+        $run->seed = 987654;
+        $run->save();
+
+        $path = DungeonRules::pathPreview($player, 'pecados', $run);
+
+        $this->assertCount(3, $path);
+        $this->assertSame($run->floor, $path[0]['floor']);
+        $this->assertCount(2, $path[0]['options']);
+        $this->assertNotSame($path[0]['options'][0]['enemy'], $path[0]['options'][1]['enemy']);
+
+        foreach ($path as $row) {
+            $this->assertSame(
+                DungeonRules::forkCount('pecados', $run->seed, $row['floor']),
+                count($row['options']),
+            );
+
+            foreach ($row['options'] as $option) {
+                $this->assertSame(
+                    DungeonRules::encounterFor('pecados', $run->seed, $row['floor'], $option['branch'])['enemy'],
+                    $option['enemy'],
+                );
+            }
+        }
+
+        $this->get('/mazmorras/pecados')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('path', 3)
+                ->where('path.0.options.0.branch', 0)
+                ->where('path.0.options.1.branch', 1)
+                ->where('dungeon.route', 0));
+    }
+
+    public function test_every_fork_offers_two_different_bosses(): void
+    {
+        foreach (range(1, 25) as $seed) {
+            for ($floor = 1; $floor <= 8; $floor++) {
+                if (DungeonRules::forkCount('pecados', $seed, $floor) < 2) {
+                    continue;
+                }
+
+                $this->assertNotSame(
+                    DungeonRules::encounterFor('pecados', $seed, $floor, 0)['enemy'],
+                    DungeonRules::encounterFor('pecados', $seed, $floor, 1)['enemy'],
+                );
+            }
+        }
+    }
+
+    public function test_choosing_a_branch_is_saved_and_changes_the_encounter(): void
+    {
+        $player = $this->createPlayer();
+        $run = DungeonRules::run($player, 'pecados');
+        $run->seed = 987654;
+        $run->save();
+
+        $encounters = [];
+
+        foreach ([0, 1] as $branch) {
+            $encounters[$branch] = DungeonRules::encounterFor('pecados', $run->seed, 1, $branch)['enemy'];
+        }
+
+        $this->assertNotSame($encounters[0], $encounters[1]);
+
+        $this->postJson('/mazmorras/pecados/ruta', ['branch' => 1])
+            ->assertOk()
+            ->assertJsonPath('branch', 1)
+            ->assertJsonPath('encounter.enemy', $encounters[1]);
+
+        $this->assertSame(1, $run->fresh()->route);
+
+        $this->get('/mazmorras/pecados')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('dungeon.route', 1)
+                ->where('encounter.enemy', $encounters[1]));
+    }
+
+    public function test_the_chosen_branch_is_used_by_the_floor_battle(): void
+    {
+        $player = $this->createPlayer(['grace' => 0]);
+        $run = DungeonRules::run($player, 'pecados');
+        $run->seed = 987654;
+        $run->save();
+
+        $team = $this->equip($player, level: 60, copies: 6);
+
+        $this->postJson('/mazmorras/pecados/ruta', ['branch' => 1])->assertOk();
+
+        $this->postJson('/mazmorras/pecados/batalla', ['team' => $team])
+            ->assertOk()
+            ->assertJsonPath('result', 'win')
+            ->assertJsonPath(
+                'history_entry.enemy',
+                DungeonRules::encounterFor('pecados', $run->seed, 1, 1)['enemy'],
+            );
+    }
+
+    public function test_clearing_a_floor_resets_the_chosen_branch(): void
+    {
+        $player = $this->createPlayer(['grace' => 0]);
+        $run = DungeonRules::run($player, 'pecados');
+        $run->seed = 987654;
+        $run->save();
+
+        $team = $this->equip($player, level: 60, copies: 6);
+
+        $this->postJson('/mazmorras/pecados/ruta', ['branch' => 1])->assertOk();
+        $this->postJson('/mazmorras/pecados/batalla', ['team' => $team])
+            ->assertOk()
+            ->assertJsonPath('run_floor', 2);
+
+        $fresh = $run->fresh();
+
+        $this->assertSame(2, $fresh->floor);
+        $this->assertSame(0, $fresh->route);
+    }
+
+    public function test_a_branch_cannot_be_chosen_in_a_sealed_dungeon(): void
+    {
+        $player = $this->createPlayer();
+        $this->equip($player);
+
+        $this->postJson('/mazmorras/goetia/ruta', ['branch' => 1])
+            ->assertStatus(403);
+    }
+
+    public function test_the_branch_must_be_zero_or_one(): void
+    {
+        $player = $this->createPlayer();
+        DungeonRules::run($player, 'pecados');
+
+        $this->postJson('/mazmorras/pecados/ruta', ['branch' => 3])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('branch');
     }
 
     /**

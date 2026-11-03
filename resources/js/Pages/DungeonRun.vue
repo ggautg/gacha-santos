@@ -11,6 +11,7 @@ import { toast } from '../lib/toast';
 const props = defineProps({
     dungeon: { type: Object, required: true },
     encounter: { type: Object, required: true },
+    path: { type: Array, default: () => [] },
     roster: { type: Array, default: () => [] },
     teamIds: { type: Array, default: () => [] },
     history: { type: Array, default: () => [] },
@@ -18,6 +19,11 @@ const props = defineProps({
 });
 
 const endpoint = computed(() => `/mazmorras/${props.dungeon.key}/batalla`);
+const routeEndpoint = computed(() => `/mazmorras/${props.dungeon.key}/ruta`);
+
+const ROW_HEIGHT = 150;
+const CAMP_TOP = 44;
+const FIRST_ROW_TOP = 80;
 
 const team = ref([...props.teamIds]);
 const current = ref({ ...props.encounter });
@@ -25,6 +31,7 @@ const bestFloor = ref(props.dungeon.best_floor);
 const runFloor = ref(props.dungeon.run_floor);
 const history = ref([...props.history]);
 const nextEncounter = ref(null);
+const selectedBranch = ref(props.dungeon.route ?? 0);
 
 const phase = ref('idle');
 const result = ref(null);
@@ -40,8 +47,12 @@ const logEntries = ref([]);
 const round = ref(0);
 const skipRequested = ref(false);
 const submitting = ref(false);
+const choosing = ref(false);
 const logBox = ref(null);
 const rosterPanel = ref(null);
+const rosterOpen = ref(props.teamIds.length === 0);
+const walkerAtCamp = ref(true);
+const walking = ref(false);
 
 let runToken = 0;
 let floatKey = 0;
@@ -54,7 +65,48 @@ const localPower = computed(() => teamCards.value.reduce((total, card) => total 
 const slots = computed(() => [0, 1, 2].map((index) => teamCards.value[index] ?? null));
 const allUnits = computed(() => [...allies.value, ...(foe.value ? [foe.value] : [])]);
 const pendingWin = computed(() => result.value?.result === 'win' && nextEncounter.value);
-const canFight = computed(() => phase.value !== 'running' && team.value.length > 0 && result.value === null);
+const canChoose = computed(() => phase.value !== 'running' && result.value?.result !== 'win' && !choosing.value);
+const canFight = computed(
+    () => phase.value !== 'running' && team.value.length > 0 && result.value === null && !choosing.value,
+);
+
+const mapRows = computed(() => props.path ?? []);
+const currentRow = computed(() => mapRows.value[0] ?? null);
+const branchCount = computed(() => currentRow.value?.options.length ?? 1);
+const selectedOptionIndex = computed(() => {
+    const row = currentRow.value;
+
+    if (!row) {
+        return 0;
+    }
+
+    const index = row.options.findIndex((option) => option.branch === selectedBranch.value);
+
+    return index >= 0 ? index : 0;
+});
+
+const walkedRow = computed(() => (pendingWin.value ? 1 : 0));
+
+const walkerX = computed(() => {
+    if (walkerAtCamp.value) {
+        return 50;
+    }
+
+    const row = mapRows.value[walkedRow.value] ?? currentRow.value;
+    const index = walkedRow.value === 0 ? selectedOptionIndex.value : 0;
+
+    return nodeX(index, row?.options.length ?? 1);
+});
+
+const walkerY = computed(() => {
+    if (walkerAtCamp.value) {
+        return CAMP_TOP;
+    }
+
+    return FIRST_ROW_TOP + walkedRow.value * ROW_HEIGHT + ROW_HEIGHT - 12;
+});
+
+const boardHeight = computed(() => FIRST_ROW_TOP + Math.max(1, mapRows.value.length) * ROW_HEIGHT + 8);
 
 const statusText = computed(() => {
     if (phase.value === 'running') {
@@ -62,11 +114,19 @@ const statusText = computed(() => {
     }
 
     if (phase.value === 'done') {
-        return result.value?.result === 'win' ? '¡Piso conquistado!' : 'La oscuridad te ha vencido';
+        return result.value?.result === 'win' ? 'Piso conquistado' : 'La oscuridad te ha vencido';
     }
 
-    return 'Prepara el equipo y presenta batalla';
+    return branchCount.value > 1 ? 'Elige uno de los dos caminos' : 'Camino único';
 });
+
+function nodeX(index, count) {
+    if (count <= 1) {
+        return 50;
+    }
+
+    return index === 0 ? 28 : 72;
+}
 
 function shortName(name) {
     return String(name ?? '').replace(/^(San|Santa|Santo|Beato|Beata)\s+/u, '');
@@ -154,6 +214,13 @@ function reset() {
         shields[unit.id] = 0;
         down[unit.id] = false;
     }
+}
+
+function markWalking(delay = 900) {
+    walking.value = true;
+    setTimer(() => {
+        walking.value = false;
+    }, delay);
 }
 
 const maxHpOf = (unit) => unit.maxHp ?? unit.hp ?? 1;
@@ -356,13 +423,15 @@ function delayFor(entry) {
 const wait = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
 async function animate(log, data, token) {
+    const pacing = log.length > 80 ? 0.35 : log.length > 45 ? 0.55 : 1;
+
     for (const entry of log) {
         if (!alive || token !== runToken) {
             return;
         }
 
         if (!skipRequested.value) {
-            await wait(delayFor(entry));
+            await wait(delayFor(entry) * pacing);
         }
 
         if (!alive || token !== runToken) {
@@ -385,7 +454,10 @@ async function animate(log, data, token) {
 }
 
 function focusRoster() {
-    rosterPanel.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    rosterOpen.value = true;
+    nextTick(() => {
+        rosterPanel.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
 }
 
 function toggle(saint) {
@@ -414,6 +486,34 @@ function toggle(saint) {
 
     team.value.push(saint.id);
     play('click');
+}
+
+async function chooseBranch(option) {
+    if (!canChoose.value) {
+        return;
+    }
+
+    if (option.branch === selectedBranch.value) {
+        return;
+    }
+
+    choosing.value = true;
+
+    try {
+        const data = await post(routeEndpoint.value, { branch: option.branch });
+        selectedBranch.value = data.branch;
+        current.value = { ...data.encounter };
+        nextEncounter.value = null;
+        reset();
+        walkerAtCamp.value = false;
+        markWalking(900);
+        play('click');
+    } catch (error) {
+        play('error');
+        toast.error(error.firstError?.() ?? error.message);
+    } finally {
+        choosing.value = false;
+    }
 }
 
 async function startFight() {
@@ -465,13 +565,15 @@ async function startFight() {
         play(data.result === 'win' ? 'win' : 'lose');
 
         if (data.result === 'win') {
-            toast.success(`Piso ${data.floor} conquistado: «${data.stage_name}». +${data.rewards.grace} Puntos de Fe.`);
+            toast.success(`Piso ${data.floor} conquistado. +${data.rewards.grace} Puntos de Fe.`);
+            walkerAtCamp.value = false;
+            markWalking(1000);
         } else {
-            toast.error('Has caído en el descenso. Puedes reintentar el mismo piso.');
+            toast.error('Has caído. Puedes reintentar el mismo piso o elegir otro camino.');
         }
 
         for (const level of data.levels ?? []) {
-            toast.success(`${level.name} sube del nivel ${level.from} al ${level.to}.`);
+            toast.success(`${level.name} sube al nivel ${level.to}.`);
         }
     } catch (error) {
         if (token === runToken) {
@@ -489,17 +591,20 @@ function advance() {
         return;
     }
 
-    current.value = { ...nextEncounter.value };
-    runFloor.value = nextEncounter.value.floor;
-    nextEncounter.value = null;
     play('click');
-    reset();
+    router.visit(window.location.href, {
+        preserveScroll: true,
+        preserveState: false,
+        replace: true,
+    });
 }
 
 function retry() {
     nextEncounter.value = null;
+    result.value = null;
+    phase.value = 'idle';
     play('click');
-    reset();
+    startFight();
 }
 
 function restartRun() {
@@ -546,6 +651,12 @@ watch(
 onMounted(() => {
     applyTheme(props.dungeon.theme);
     reset();
+    nextTick(() => {
+        setTimer(() => {
+            walkerAtCamp.value = false;
+            markWalking(900);
+        }, 420);
+    });
 });
 
 onBeforeUnmount(() => {
@@ -577,35 +688,160 @@ const logClass = (entry) => {
 <template>
     <Head :title="dungeon.name" />
 
-    <header class="page-head dungeon-head">
-        <div>
-            <span class="page-kicker">Sanctorum · {{ dungeon.font_name }}</span>
-            <h1 class="page-title">{{ dungeon.name }}</h1>
-            <p class="page-lead">{{ dungeon.tagline || dungeon.subtitle }}</p>
+    <header class="run-head">
+        <div class="run-head-title">
+            <Link href="/mazmorras" class="run-back" aria-label="Volver a las mazmorras" @click="play('click')">←</Link>
+            <div>
+                <span class="run-kicker">Descenso procedural</span>
+                <h1 class="run-title">{{ dungeon.name }}</h1>
+            </div>
         </div>
-        <div class="btn-row">
-            <span class="tag">Piso actual <strong>{{ current.floor }}</strong></span>
-            <span class="tag">Mejor piso <strong>{{ bestFloor }}</strong></span>
-            <span class="tag">Poder <strong>{{ localPower }}</strong></span>
-            <Link href="/mazmorras" class="btn btn--ghost btn--sm" @click="play('click')">← Mazmorras</Link>
+
+        <div class="run-stats">
+            <span class="run-stat"><strong>{{ current.floor }}</strong> piso</span>
+            <span class="run-stat"><strong>{{ bestFloor }}</strong> récord</span>
+            <span class="run-stat run-stat--gold"><strong>{{ player.grace }}</strong> fe</span>
         </div>
     </header>
 
     <div
-        class="dungeon-run"
+        class="run-layout"
         :style="{ '--dungeon-accent': dungeon.accent, '--dungeon-accent2': dungeon.accent2 }"
     >
-        <aside class="dungeon-camp">
-            <div class="panel campsite">
+        <section class="panel run-map">
+            <div class="run-map-head">
+                <h2 class="panel-title">El descenso</h2>
+                <span class="run-map-status">{{ statusText }}</span>
+            </div>
+
+            <div class="map-board" :style="{ height: `${boardHeight}px` }">
+                <div class="map-spine" aria-hidden="true"></div>
+
+                <div class="map-camp" aria-hidden="true">
+                    <span class="map-camp-mark">✦</span>
+                    <span class="map-camp-label">Campamento</span>
+                </div>
+
+                <div
+                    v-for="(row, rowIndex) in mapRows"
+                    :key="row.floor"
+                    class="map-row"
+                    :class="{ 'is-current': rowIndex === 0, 'is-cleared': rowIndex === 0 && result?.result === 'win' }"
+                    :style="{ top: `${FIRST_ROW_TOP + rowIndex * ROW_HEIGHT}px` }"
+                >
+                    <span
+                        v-if="row.options.length > 1"
+                        class="map-branch-line"
+                        :class="{ 'is-live': rowIndex === 0 }"
+                        aria-hidden="true"
+                    ></span>
+
+                    <button
+                        v-for="(option, optionIndex) in row.options"
+                        :key="option.branch"
+                        type="button"
+                        class="map-node"
+                        :class="{
+                            'is-current': rowIndex === 0,
+                            'is-selected': rowIndex === 0 && option.branch === selectedBranch,
+                            'is-future': rowIndex > 0,
+                            'is-locked': rowIndex === 0 && !canChoose,
+                        }"
+                        :style="{ left: `${nodeX(optionIndex, row.options.length)}%` }"
+                        :disabled="rowIndex > 0 || !canChoose"
+                        :aria-pressed="rowIndex === 0 ? option.branch === selectedBranch : undefined"
+                        @click="chooseBranch(option)"
+                    >
+                        <span class="map-node-floor">Piso {{ row.floor }}</span>
+                        <span class="map-node-art">
+                            <img :src="option.sprite" :alt="rowIndex === 0 ? option.name : 'Enemigo velado'" draggable="false" />
+                        </span>
+                        <span class="map-node-name">{{ rowIndex === 0 ? option.name : '???' }}</span>
+                        <span v-if="rowIndex === 0" class="map-node-reward">+{{ option.grace }} fe</span>
+                        <span v-else class="map-node-reward">Sombra</span>
+                        <span v-if="rowIndex === 0 && option.branch === selectedBranch" class="map-node-flag" aria-hidden="true">✓</span>
+                    </button>
+                </div>
+
+                <div
+                    class="map-party"
+                    :class="{ 'is-walking': walking }"
+                    :style="{ left: `${walkerX}%`, top: `${walkerY}px` }"
+                    aria-hidden="true"
+                >
+                    <span v-for="card in teamCards" :key="card.id" class="map-walker">
+                        <img :src="card.art" :alt="card.name" draggable="false" />
+                    </span>
+                    <span v-if="teamCards.length === 0" class="map-walker map-walker--empty">+</span>
+                </div>
+            </div>
+
+            <div class="run-map-foot">
+                <p v-if="phase === 'idle'" class="run-map-hint">
+                    {{ branchCount > 1 ? 'Toca un camino para que tus santos lo recorran.' : 'Un solo camino se abre ante ti.' }}
+                </p>
+                <p v-else-if="phase === 'running'" class="run-map-hint">{{ statusText }} · tus santos están luchando.</p>
+                <p v-else class="run-map-hint">{{ statusText }}.</p>
+
+                <button
+                    v-if="phase === 'running'"
+                    type="button"
+                    class="btn btn--ghost btn--sm"
+                    @click="skipAnimation"
+                >
+                    Saltar animación
+                </button>
+            </div>
+        </section>
+
+        <aside class="run-side">
+            <section class="panel run-target">
                 <div class="panel-head">
-                    <h2 class="panel-title">Campamento</h2>
+                    <h2 class="panel-title">Encuentro</h2>
+                    <span class="panel-note">Piso {{ current.floor }}</span>
+                </div>
+                <div class="panel-body run-target-body">
+                    <div class="run-target-head">
+                        <span class="run-target-art">
+                            <img :src="current.sprite" :alt="current.name" draggable="false" />
+                        </span>
+                        <div class="run-target-copy">
+                            <h3>{{ current.name }}</h3>
+                            <p>{{ current.subtitle }}</p>
+                        </div>
+                    </div>
+
+                    <div class="run-target-stats">
+                        <span>Vida <strong>{{ current.hp }}</strong></span>
+                        <span>Ataque <strong>{{ current.atk }}</strong></span>
+                        <span>Fe <strong>+{{ current.grace }}</strong></span>
+                        <span>XP <strong>+{{ current.xp }}</strong></span>
+                    </div>
+
+                    <button
+                        type="button"
+                        class="btn btn--gold btn--block"
+                        :disabled="!canFight || submitting"
+                        @click="startFight"
+                    >
+                        {{ phase === 'running' ? 'Batalla en curso…' : 'Presentar batalla' }}
+                    </button>
+
+                    <p v-if="team.length === 0" class="run-target-note">
+                        Elige al menos un santo para descender.
+                    </p>
+                    <p v-else-if="!canFight && phase === 'idle'" class="run-target-note">
+                        Elige un camino en el mapa.
+                    </p>
+                </div>
+            </section>
+
+            <section ref="rosterPanel" class="panel run-team">
+                <div class="panel-head">
+                    <h2 class="panel-title">Tu equipo</h2>
                     <span class="panel-note">{{ team.length }} / 3</span>
                 </div>
                 <div class="panel-body">
-                    <p class="panel-note camp-hint">
-                        Elige hasta tres santos antes de entrar. El equipo se sella al presentar batalla.
-                    </p>
-
                     <div class="camp-slots">
                         <div
                             v-for="(slot, index) in slots"
@@ -629,41 +865,25 @@ const logClass = (entry) => {
                                     ✕
                                 </button>
                                 <img :src="slot.art" :alt="slot.name" draggable="false" />
-                                <span class="slot-name">{{ slot.name }}</span>
-                                <span class="slot-level">Nv. {{ slot.owned.level }} · {{ slot.owned.power }} PX</span>
+                                <span class="slot-name">{{ shortName(slot.name) }}</span>
                             </template>
                             <template v-else>
                                 <span class="slot-empty">
                                     <span class="plus" aria-hidden="true">+</span>
-                                    Elegir santo
+                                    Añadir
                                 </span>
                             </template>
                         </div>
                     </div>
 
-                    <div class="power-line">
-                        <div>
-                            <span class="eyebrow">Poder del equipo</span>
-                            <div class="power-value">{{ localPower }}</div>
-                        </div>
-                        <button type="button" class="btn btn--ghost btn--sm" :disabled="phase === 'running'" @click="restartRun">
-                            Abrir grieta nueva
+                    <div class="run-team-foot">
+                        <span class="run-team-power"><strong>{{ localPower }}</strong> poder</span>
+                        <button type="button" class="btn btn--ghost btn--sm" :disabled="phase === 'running'" @click="rosterOpen = !rosterOpen">
+                            {{ rosterOpen ? 'Cerrar' : 'Cambiar' }}
                         </button>
                     </div>
 
-                    <p class="panel-note" style="margin-top: 10px">
-                        «Abrir grieta nueva» cambia el elenco de jefes del descenso, pero conserva tu mejor piso.
-                    </p>
-                </div>
-            </div>
-
-            <div ref="rosterPanel" class="panel" style="scroll-margin-top: 96px">
-                <div class="panel-head">
-                    <h2 class="panel-title">Tu santoral</h2>
-                    <span class="panel-note">{{ roster.length }} santos</span>
-                </div>
-                <div class="panel-body">
-                    <div v-if="roster.length" class="camp-roster">
+                    <div v-if="rosterOpen" class="camp-roster run-roster">
                         <SaintCard
                             v-for="saint in roster"
                             :key="saint.id"
@@ -673,186 +893,129 @@ const logClass = (entry) => {
                         />
                     </div>
 
-                    <div v-else class="empty">
+                    <div v-if="!roster.length" class="empty run-empty">
                         <strong>Tu santoral está vacío</strong>
-                        <p>Ora por tu primer santo en el santuario para descender.</p>
-                        <Link href="/" class="btn btn--gold btn--sm" style="margin-top: 12px">Ir al santuario</Link>
+                        <Link href="/" class="btn btn--gold btn--sm" @click="play('click')">Ir al santuario</Link>
                     </div>
-                </div>
-            </div>
 
-            <div v-if="history.length" class="panel">
-                <div class="panel-head">
-                    <h2 class="panel-title">Crónicas del descenso</h2>
+                    <button type="button" class="run-rift" :disabled="phase === 'running'" @click="restartRun">
+                        Abrir una grieta nueva
+                    </button>
                 </div>
-                <div class="panel-body">
-                    <div class="history">
-                        <div v-for="(entry, index) in history" :key="index" class="history-row">
-                            <span class="res" :class="entry.result === 'win' ? 'res--win' : 'res--lose'">
-                                {{ entry.result === 'win' ? 'V' : 'D' }}
-                            </span>
-                            <span>{{ entry.floor }}. {{ entry.name }}</span>
-                            <span class="spacer">{{ entry.at }}</span>
-                        </div>
+            </section>
+
+            <details v-if="history.length" class="panel run-history">
+                <summary>Crónicas recientes</summary>
+                <div class="run-history-body">
+                    <div v-for="(entry, index) in history.slice(0, 5)" :key="index" class="history-row">
+                        <span class="res" :class="entry.result === 'win' ? 'res--win' : 'res--lose'">
+                            {{ entry.result === 'win' ? 'V' : 'D' }}
+                        </span>
+                        <span>{{ entry.floor }}. {{ entry.name }}</span>
+                        <span class="spacer">{{ entry.at }}</span>
                     </div>
                 </div>
-            </div>
+            </details>
         </aside>
+    </div>
 
-        <div class="battle-main">
-            <div class="boss-panel">
-                <div class="boss-art">
-                    <img :src="current.sprite" :alt="current.name" draggable="false" />
-                </div>
+    <section v-if="phase !== 'idle'" class="panel run-battle">
+        <div class="run-battle-head">
+            <h2 class="panel-title">Combate</h2>
+            <span class="run-battle-status">{{ statusText }}</span>
+            <button v-if="phase === 'running'" type="button" class="btn btn--ghost btn--sm" @click="skipAnimation">
+                Saltar
+            </button>
+        </div>
 
-                <div class="boss-copy">
-                    <span class="eyebrow">Piso {{ current.floor }} · jefe al azar</span>
-                    <h2>{{ current.name }}</h2>
-                    <p class="boss-sub">{{ current.subtitle }}</p>
+        <div class="arena">
+            <div class="arena-vs" aria-hidden="true">VS</div>
 
-                    <div class="boss-stats">
-                        <span class="tag">Vida <strong>{{ current.hp }}</strong></span>
-                        <span class="tag">Ataque <strong>{{ current.atk }}</strong></span>
-                        <span class="tag">Defensa <strong>{{ current.def }}</strong></span>
-                        <span class="tag">Habilidad <strong>{{ current.skill_name }}</strong></span>
-                        <span class="tag">Puntos de Fe <strong>{{ current.grace }}</strong></span>
-                        <span class="tag">XP <strong>{{ current.xp }}</strong></span>
-                    </div>
-
-                    <div class="lineup">
-                        <div v-for="unit in units" :key="unit.id" class="lineup-unit">
-                            <img :src="unit.sprite" :alt="unit.name" draggable="false" />
-                            <span>
-                                <span class="u-name">{{ unit.short }}</span>
-                                <span class="u-lv">Nv. {{ unit.level }}</span>
-                            </span>
-                        </div>
-                        <span v-if="units.length === 0" class="panel-note">
-                            Sin equipo. <button type="button" class="link-button" @click="focusRoster">Elige santos en el campamento.</button>
-                        </span>
-                    </div>
-
-                    <div class="btn-row" style="margin-top: 10px">
-                        <button
-                            type="button"
-                            class="btn btn--gold"
-                            :disabled="!canFight || submitting"
-                            @click="startFight"
+            <div class="arena-field">
+                <div class="arena-side">
+                    <div v-for="unit in allies" :key="unit.id" class="fighter" :class="fighterClass(unit)">
+                        <span
+                            v-if="floatFor(unit.id)"
+                            :key="floatFor(unit.id).key"
+                            class="float-dmg"
+                            :class="{ 'is-heal': floatFor(unit.id).type === 'heal', 'is-shield': floatFor(unit.id).type === 'shield', 'is-crit': floatFor(unit.id).type === 'crit' }"
                         >
-                            {{ phase === 'running' ? 'Batalla en curso…' : 'Presentar batalla' }}
-                        </button>
-                        <button
-                            v-if="phase === 'running'"
-                            type="button"
-                            class="btn btn--ghost btn--sm"
-                            @click="skipAnimation"
-                        >
-                            Saltar animación
-                        </button>
-                        <span v-if="!pendingWin && result === null && team.length === 0" class="panel-note">
-                            El campamento está vacío.
+                            {{ floatFor(unit.id).text }}
                         </span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="arena">
-                <div class="arena-status">{{ statusText }}</div>
-                <div class="arena-vs" aria-hidden="true">VS</div>
-
-                <div class="arena-field">
-                    <div class="arena-side">
-                        <div v-for="unit in allies" :key="unit.id" class="fighter" :class="fighterClass(unit)">
-                            <span
-                                v-if="floatFor(unit.id)"
-                                :key="floatFor(unit.id).key"
-                                class="float-dmg"
-                                :class="{ 'is-heal': floatFor(unit.id).type === 'heal', 'is-shield': floatFor(unit.id).type === 'shield', 'is-crit': floatFor(unit.id).type === 'crit' }"
-                            >
-                                {{ floatFor(unit.id).text }}
-                            </span>
-                            <img :src="unit.sprite" :alt="unit.name" draggable="false" />
-                            <span class="fighter-name">{{ unit.short }}</span>
-                            <span class="fighter-lv">Nv. {{ unit.level }}</span>
-                            <div class="hp-wrap">
-                                <div class="hp-bar" :class="hpClass(unit)">
-                                    <span :style="{ width: `${hpPercent(unit)}%` }"></span>
-                                    <span v-if="shields[unit.id]" class="shield-bar" :style="{ width: `${shieldPercent(unit)}%` }"></span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="arena-side arena-side--foe">
-                        <div v-if="foe" class="fighter fighter--foe" :class="fighterClass(foe)">
-                            <span
-                                v-if="floatFor(foe.id)"
-                                :key="floatFor(foe.id).key"
-                                class="float-dmg"
-                                :class="{ 'is-heal': floatFor(foe.id).type === 'heal', 'is-shield': floatFor(foe.id).type === 'shield', 'is-crit': floatFor(foe.id).type === 'crit' }"
-                            >
-                                {{ floatFor(foe.id).text }}
-                            </span>
-                            <img :src="foe.sprite" :alt="foe.name" draggable="false" />
-                            <span class="fighter-name">{{ foe.short }}</span>
-                            <span class="fighter-lv">Piso {{ foe.level }}</span>
-                            <div class="hp-wrap">
-                                <div class="hp-bar" :class="hpClass(foe)">
-                                    <span :style="{ width: `${hpPercent(foe)}%` }"></span>
-                                    <span v-if="shields[foe.id]" class="shield-bar" :style="{ width: `${shieldPercent(foe)}%` }"></span>
-                                </div>
+                        <img :src="unit.sprite" :alt="unit.name" draggable="false" />
+                        <span class="fighter-name">{{ unit.short }}</span>
+                        <span class="fighter-lv">Nv. {{ unit.level }}</span>
+                        <div class="hp-wrap">
+                            <div class="hp-bar" :class="hpClass(unit)">
+                                <span :style="{ width: `${hpPercent(unit)}%` }"></span>
+                                <span v-if="shields[unit.id]" class="shield-bar" :style="{ width: `${shieldPercent(unit)}%` }"></span>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <div v-if="phase === 'done' && result" class="result-banner" :class="{ 'is-lose': result.result !== 'win' }">
-                <div>
-                    <span class="eyebrow">{{ result.result === 'win' ? 'Piso conquistado' : 'Descenso truncado' }}</span>
-                    <div class="result-title">{{ result.result === 'win' ? '¡Victoria!' : 'Derrota' }}</div>
-                    <p class="panel-note">Piso {{ result.floor }} · {{ result.stage_name }}</p>
-                    <p v-if="result.levels?.length" class="panel-note">
-                        Suben de nivel:
-                        <span v-for="level in result.levels" :key="level.slug" class="gold">{{ level.name }} ({{ level.to }}) </span>
-                    </p>
-                </div>
-                <div class="result-rewards">
-                    <span>Puntos de Fe <strong>+{{ result.rewards.grace }}</strong></span>
-                    <span>XP <strong>+{{ result.rewards.xp }}</strong></span>
-                </div>
-                <div class="btn-row">
-                    <button v-if="result.result !== 'win'" type="button" class="btn btn--ghost btn--sm" @click="retry">
-                        Reintentar piso
-                    </button>
-                    <button v-if="pendingWin" type="button" class="btn btn--gold btn--sm" @click="advance">
-                        Descender al piso {{ nextEncounter.floor }} →
-                    </button>
-                </div>
-            </div>
-
-            <div class="panel">
-                <div class="panel-head">
-                    <h2 class="panel-title">Crónica del combate</h2>
-                    <span class="panel-note">Piso {{ current.floor }}</span>
-                </div>
-                <div class="panel-body">
-                    <div ref="logBox" class="battle-log" aria-live="polite">
-                        <p v-if="logEntries.length === 0" class="panel-note">
-                            La crónica aparecerá aquí cuando presente batalla.
-                        </p>
-                        <div
-                            v-for="entry in logEntries"
-                            :key="entry.key"
-                            class="log-entry"
-                            :class="logClass(entry)"
+                <div class="arena-side arena-side--foe">
+                    <div v-if="foe" class="fighter fighter--foe" :class="fighterClass(foe)">
+                        <span
+                            v-if="floatFor(foe.id)"
+                            :key="floatFor(foe.id).key"
+                            class="float-dmg"
+                            :class="{ 'is-heal': floatFor(foe.id).type === 'heal', 'is-shield': floatFor(foe.id).type === 'shield', 'is-crit': floatFor(foe.id).type === 'crit' }"
                         >
-                            <span v-if="entry.turn" class="log-turn">{{ entry.turn }}</span>
-                            <span>{{ entry.text }}</span>
+                            {{ floatFor(foe.id).text }}
+                        </span>
+                        <img :src="foe.sprite" :alt="foe.name" draggable="false" />
+                        <span class="fighter-name">{{ foe.short }}</span>
+                        <span class="fighter-lv">Piso {{ foe.level }}</span>
+                        <div class="hp-wrap">
+                            <div class="hp-bar" :class="hpClass(foe)">
+                                <span :style="{ width: `${hpPercent(foe)}%` }"></span>
+                                <span v-if="shields[foe.id]" class="shield-bar" :style="{ width: `${shieldPercent(foe)}%` }"></span>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
+
+        <div v-if="phase === 'done' && result" class="run-result" :class="{ 'is-lose': result.result !== 'win' }">
+            <div class="run-result-copy">
+                <strong>{{ result.result === 'win' ? '¡Victoria!' : 'Derrota' }}</strong>
+                <span>Piso {{ result.floor }} · {{ result.stage_name }}</span>
+            </div>
+
+            <div class="run-result-rewards">
+                <span>Fe <strong>+{{ result.rewards.grace }}</strong></span>
+                <span>XP <strong>+{{ result.rewards.xp }}</strong></span>
+                <span v-if="result.levels?.length" class="run-levels">
+                    Suben: {{ result.levels.map((level) => level.name).join(', ') }}
+                </span>
+            </div>
+
+            <div class="btn-row">
+                <button v-if="result.result !== 'win'" type="button" class="btn btn--ghost btn--sm" @click="retry">
+                    Reintentar
+                </button>
+                <button v-if="pendingWin" type="button" class="btn btn--gold btn--sm" @click="advance">
+                    Descender al piso {{ nextEncounter.floor }}
+                </button>
+            </div>
+        </div>
+
+        <details class="run-battle-log">
+            <summary>Crónica del combate</summary>
+            <div ref="logBox" class="battle-log" aria-live="polite">
+                <p v-if="logEntries.length === 0" class="panel-note">La crónica aparecerá al presentar batalla.</p>
+                <div
+                    v-for="entry in logEntries"
+                    :key="entry.key"
+                    class="log-entry"
+                    :class="logClass(entry)"
+                >
+                    <span v-if="entry.turn" class="log-turn">{{ entry.turn }}</span>
+                    <span>{{ entry.text }}</span>
+                </div>
+            </div>
+        </details>
+    </section>
 </template>

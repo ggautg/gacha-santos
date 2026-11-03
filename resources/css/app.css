@@ -12,7 +12,7 @@
     font-style: normal;
     font-weight: 400;
     font-display: swap;
-    src: url('/fonts/press-start-2p.woff2') format('woff2');
+    src: url('../fonts/press-start-2p.woff2') format('woff2');
 }
 
 @font-face {
@@ -20,7 +20,7 @@
     font-style: normal;
     font-weight: 400;
     font-display: swap;
-    src: url('/fonts/vt323.woff2') format('woff2');
+    src: url('../fonts/vt323.woff2') format('woff2');
 }
 
 :root {
@@ -5135,3 +5135,1039 @@ html[data-theme] .client-module {
     }
 }
 
+
+/* ==========================================================================
+   Descenso procedural: mapa, caminos y campamento
+   ========================================================================== */
+
+.run-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+}
+
+.run-head-title {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+}
+
+.run-back {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    border: 2px solid var(--line);
+    background: rgba(9, 6, 20, 0.55);
+    color: var(--muted);
+    font-size: 20px;
+    line-height: 1;
+    transition: color 0.15s, border-color 0.15s, transform 0.15s;
+}
+
+.run-back:hover {
+    border-color: var(--gold-deep);
+    color: var(--gold-bright);
+    transform: translateX(-2px);
+}
+
+.run-kicker {
+    font-family: var(--font-pixel);
+    font-size: 8px;
+    letter-spacing: 1.6px;
+    text-transform: uppercase;
+    color: var(--muted-2);
+}
+
+.run-title {
+    margin-top: 2px;
+    font-size: clamp(18px, 2.6vw, 26px);
+    line-height: 1.2;
+    color: var(--parchment);
+    text-shadow: 0 2px 0 var(--ink-deep), 0 0 24px rgba(176, 124, 240, 0.25);
+}
+
+.run-stats {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.run-stat {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 5px;
+    padding: 6px 10px;
+    border: 1px solid var(--line);
+    background: rgba(9, 6, 20, 0.5);
+    font-family: var(--font-pixel);
+    font-size: 7px;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+.run-stat strong {
+    font-family: var(--font-pixel);
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--parchment);
+}
+
+.run-stat--gold strong {
+    color: var(--gold-bright);
+}
+
+.run-layout {
+    --dungeon-accent: #5a4a9a;
+    --dungeon-accent2: #f2c94c;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 330px);
+    gap: 18px;
+    align-items: start;
+}
+
+/* Mapa ---------------------------------------------------------------- */
+
+.run-map {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding: 14px;
+    border-color: color-mix(in srgb, var(--dungeon-accent) 40%, var(--line));
+    background:
+        radial-gradient(
+            ellipse at 50% 0%,
+            color-mix(in srgb, var(--dungeon-accent) 26%, transparent),
+            transparent 62%
+        ),
+        linear-gradient(165deg, rgba(28, 22, 58, 0.92), rgba(11, 8, 24, 0.96));
+}
+
+.run-map-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 2px 4px 10px;
+}
+
+.run-map-status {
+    font-size: 14px;
+    color: color-mix(in srgb, var(--dungeon-accent2) 70%, var(--muted));
+}
+
+.map-board {
+    position: relative;
+    width: 100%;
+    min-height: 480px;
+    overflow: hidden;
+    border: 2px solid color-mix(in srgb, var(--dungeon-accent) 30%, var(--line-soft));
+    background:
+        radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.05), transparent 55%),
+        repeating-linear-gradient(
+            0deg,
+            rgba(255, 255, 255, 0.022) 0 1px,
+            transparent 1px 44px
+        ),
+        repeating-linear-gradient(
+            90deg,
+            rgba(255, 255, 255, 0.022) 0 1px,
+            transparent 1px 44px
+        ),
+        linear-gradient(180deg, rgba(12, 9, 28, 0.92), rgba(5, 3, 12, 0.98));
+}
+
+.map-board::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(ellipse at 50% 50%, transparent 45%, rgba(4, 3, 10, 0.55) 100%);
+}
+
+.map-spine {
+    position: absolute;
+    top: 70px;
+    bottom: 26px;
+    left: 50%;
+    width: 2px;
+    margin-left: -1px;
+    background: repeating-linear-gradient(
+        to bottom,
+        color-mix(in srgb, var(--dungeon-accent) 55%, var(--line-soft)) 0 7px,
+        transparent 7px 14px
+    );
+    opacity: 0.7;
+}
+
+.map-camp {
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    z-index: 2;
+    display: grid;
+    justify-items: center;
+    gap: 1px;
+    transform: translateX(-50%);
+    color: var(--muted-2);
+}
+
+.map-camp-mark {
+    font-size: 18px;
+    line-height: 1;
+    color: var(--dungeon-accent2);
+    text-shadow: 0 0 14px color-mix(in srgb, var(--dungeon-accent2) 60%, transparent);
+}
+
+.map-camp-label {
+    font-family: var(--font-pixel);
+    font-size: 6px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.map-row {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 150px;
+    z-index: 2;
+}
+
+.map-branch-line {
+    position: absolute;
+    top: 40px;
+    left: 28%;
+    right: 28%;
+    height: 2px;
+    background: repeating-linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--dungeon-accent) 45%, var(--line-soft)) 0 6px,
+        transparent 6px 12px
+    );
+    opacity: 0.55;
+}
+
+.map-branch-line.is-live {
+    background: repeating-linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--dungeon-accent2) 65%, var(--line)) 0 6px,
+        transparent 6px 12px
+    );
+    opacity: 0.9;
+}
+
+.map-node {
+    position: absolute;
+    top: 0;
+    display: grid;
+    justify-items: center;
+    gap: 3px;
+    width: 112px;
+    padding: 8px 7px 7px;
+    border: 2px solid var(--line);
+    background: linear-gradient(170deg, rgba(37, 29, 77, 0.94), rgba(12, 9, 28, 0.98));
+    color: var(--parchment);
+    cursor: pointer;
+    text-align: center;
+    transform: translateX(-50%);
+    box-shadow: 0 4px 0 var(--ink-deep), inset 0 0 18px rgba(0, 0, 0, 0.45);
+    transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease,
+        filter 0.18s ease;
+}
+
+.map-node:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--dungeon-accent2) 55%, var(--line));
+    transform: translateX(-50%) translateY(-3px);
+}
+
+.map-node:focus-visible {
+    outline: 2px solid var(--dungeon-accent2);
+    outline-offset: 3px;
+}
+
+.map-node.is-selected {
+    border-color: color-mix(in srgb, var(--dungeon-accent2) 80%, #fff);
+    background: linear-gradient(170deg, rgba(58, 45, 108, 0.96), rgba(16, 12, 36, 0.98));
+    box-shadow: 0 4px 0 var(--ink-deep),
+        0 0 22px color-mix(in srgb, var(--dungeon-accent) 55%, transparent),
+        inset 0 0 22px color-mix(in srgb, var(--dungeon-accent) 25%, transparent);
+    transform: translateX(-50%) translateY(-3px);
+}
+
+.map-node.is-future {
+    opacity: 0.62;
+    filter: saturate(0.4);
+    cursor: default;
+}
+
+.map-node.is-future:hover {
+    transform: translateX(-50%);
+}
+
+.map-node.is-locked {
+    cursor: default;
+    opacity: 0.7;
+}
+
+.map-node-floor {
+    font-family: var(--font-pixel);
+    font-size: 6px;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--muted-2);
+}
+
+.map-node.is-selected .map-node-floor {
+    color: var(--dungeon-accent2);
+}
+
+.map-node-art {
+    display: block;
+    width: 62px;
+    height: 62px;
+    overflow: hidden;
+    border: 2px solid rgba(0, 0, 0, 0.55);
+    background: #0a0718;
+    box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.7);
+}
+
+.map-node-art img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    image-rendering: pixelated;
+}
+
+.map-node.is-future .map-node-art img {
+    filter: brightness(0.35) blur(2px) grayscale(0.6);
+}
+
+.map-node-name {
+    width: 100%;
+    overflow: hidden;
+    font-size: 13px;
+    line-height: 1.15;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.map-node-reward {
+    font-family: var(--font-pixel);
+    font-size: 6px;
+    letter-spacing: 0.4px;
+    color: var(--gold);
+}
+
+.map-node-flag {
+    position: absolute;
+    top: -9px;
+    right: -9px;
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--ink-deep);
+    border-radius: 50%;
+    background: var(--dungeon-accent2);
+    color: #231803;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.map-party {
+    position: absolute;
+    z-index: 4;
+    display: flex;
+    align-items: flex-end;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    transition: left 0.72s cubic-bezier(0.45, 0.05, 0.35, 1),
+        top 0.72s cubic-bezier(0.45, 0.05, 0.35, 1);
+}
+
+.map-walker {
+    display: block;
+    width: 34px;
+    height: 40px;
+    margin-left: -9px;
+    overflow: hidden;
+    border: 2px solid color-mix(in srgb, var(--dungeon-accent2) 70%, #fff);
+    background: #0a0718;
+    box-shadow: 0 3px 0 rgba(0, 0, 0, 0.55),
+        0 0 14px color-mix(in srgb, var(--dungeon-accent2) 35%, transparent);
+}
+
+.map-walker:first-child {
+    margin-left: 0;
+}
+
+.map-walker img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    image-rendering: pixelated;
+}
+
+.map-walker--empty {
+    display: grid;
+    place-items: center;
+    border-style: dashed;
+    border-color: var(--line);
+    color: var(--muted-2);
+    font-size: 18px;
+    box-shadow: none;
+}
+
+.map-party.is-walking .map-walker {
+    animation: walker-bob 0.34s steps(2, end) infinite alternate;
+}
+
+.map-party.is-walking .map-walker:nth-child(2) {
+    animation-delay: 0.09s;
+}
+
+.map-party.is-walking .map-walker:nth-child(3) {
+    animation-delay: 0.18s;
+}
+
+@keyframes walker-bob {
+    from {
+        transform: translateY(0);
+    }
+
+    to {
+        transform: translateY(-5px);
+    }
+}
+
+.run-map-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    min-height: 42px;
+    padding: 10px 4px 2px;
+}
+
+.run-map-hint {
+    margin: 0;
+    font-size: 14px;
+    color: var(--muted);
+}
+
+/* Columna lateral ------------------------------------------------------ */
+
+.run-side {
+    display: grid;
+    gap: 14px;
+    align-content: start;
+    min-width: 0;
+}
+
+.run-target .panel-body,
+.run-team .panel-body {
+    display: grid;
+    gap: 12px;
+    padding: 14px;
+}
+
+.run-target-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.run-target-art {
+    flex: 0 0 auto;
+    width: 66px;
+    height: 78px;
+    overflow: hidden;
+    border: 2px solid color-mix(in srgb, var(--dungeon-accent) 70%, var(--line));
+    background: #0a0718;
+    box-shadow: inset 0 0 16px rgba(0, 0, 0, 0.6);
+}
+
+.run-target-art img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    image-rendering: pixelated;
+}
+
+.run-target-copy {
+    min-width: 0;
+}
+
+.run-target-copy h3 {
+    font-size: 12px;
+    line-height: 1.25;
+    color: color-mix(in srgb, var(--dungeon-accent2) 60%, var(--parchment));
+}
+
+.run-target-copy p {
+    margin-top: 4px;
+    font-size: 14px;
+    line-height: 1.35;
+    color: var(--muted);
+}
+
+.run-target-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.run-target-stats span {
+    padding: 4px 8px;
+    border: 1px solid var(--line-soft);
+    background: rgba(9, 6, 20, 0.45);
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.run-target-stats strong {
+    font-weight: 400;
+    color: var(--parchment);
+}
+
+.run-target-note {
+    margin: 0;
+    font-size: 13px;
+    color: var(--muted-2);
+}
+
+.run-team-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.run-team-power {
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.run-team-power strong {
+    font-family: var(--font-pixel);
+    font-size: 10px;
+    font-weight: 400;
+    color: var(--gold-bright);
+}
+
+.run-roster {
+    max-height: 310px;
+    overflow-y: auto;
+    padding: 2px 4px 2px 2px;
+}
+
+.run-empty {
+    display: grid;
+    justify-items: start;
+    gap: 10px;
+}
+
+.run-rift {
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px dashed var(--line);
+    background: transparent;
+    color: var(--muted-2);
+    font-family: var(--font-pixel);
+    font-size: 7px;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.run-rift:hover:not(:disabled) {
+    border-color: var(--dungeon-accent);
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--parchment);
+}
+
+.run-rift:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.run-history summary,
+.run-battle-log summary {
+    cursor: pointer;
+    list-style: none;
+    padding: 12px 16px;
+    font-family: var(--font-pixel);
+    font-size: 8px;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--gold);
+}
+
+.run-history summary::-webkit-details-marker,
+.run-battle-log summary::-webkit-details-marker {
+    display: none;
+}
+
+.run-history summary::before,
+.run-battle-log summary::before {
+    content: '›';
+    display: inline-block;
+    margin-right: 8px;
+    transform: rotate(0deg);
+    transition: transform 0.15s;
+}
+
+.run-history[open] summary::before,
+.run-battle-log[open] summary::before {
+    transform: rotate(90deg);
+}
+
+.run-history-body {
+    display: grid;
+    gap: 8px;
+    padding: 0 16px 14px;
+}
+
+.run-history .history-row {
+    font-size: 14px;
+}
+
+/* Combate -------------------------------------------------------------- */
+
+.run-battle {
+    margin-top: 18px;
+    border-color: color-mix(in srgb, var(--dungeon-accent) 40%, var(--line));
+}
+
+.run-battle-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 12px 16px;
+    border-bottom: 2px solid var(--line-soft);
+}
+
+.run-battle-head .panel-title {
+    margin-right: auto;
+}
+
+.run-battle-status {
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.run-result {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+    padding: 14px 16px;
+    border-top: 2px solid var(--line-soft);
+    background: linear-gradient(180deg, rgba(242, 201, 76, 0.1), rgba(9, 6, 20, 0.4));
+    animation: pop-in 0.3s ease both;
+}
+
+.run-result.is-lose {
+    background: linear-gradient(180deg, rgba(163, 53, 47, 0.16), rgba(9, 6, 20, 0.4));
+}
+
+.run-result-copy {
+    display: grid;
+    gap: 2px;
+}
+
+.run-result-copy strong {
+    font-family: var(--font-pixel);
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--gold-bright);
+    text-shadow: 0 0 18px rgba(242, 201, 76, 0.35);
+}
+
+.run-result-copy span {
+    font-size: 14px;
+    color: var(--muted);
+}
+
+.run-result-rewards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    font-size: 14px;
+    color: var(--muted);
+}
+
+.run-result-rewards strong {
+    font-weight: 400;
+    color: var(--parchment);
+}
+
+.run-levels {
+    color: var(--dungeon-accent2);
+}
+
+.run-battle-log {
+    border-top: 2px solid var(--line-soft);
+}
+
+.run-battle-log .battle-log {
+    border-top: 1px dashed var(--line-soft);
+}
+
+/* ==========================================================================
+   Tipografía legible
+   ========================================================================== */
+
+html:is([data-font='clasica'], [data-font='rubrica']) {
+    -webkit-font-smoothing: antialiased;
+    font-smooth: auto;
+}
+
+html:is([data-font='clasica'], [data-font='rubrica']) body {
+    font-size: 18px;
+    line-height: 1.55;
+    letter-spacing: 0;
+}
+
+html:is([data-font='clasica'], [data-font='rubrica']) .page-title {
+    font-size: clamp(26px, 3.4vw, 38px);
+    line-height: 1.15;
+    letter-spacing: -0.2px;
+}
+
+html:is([data-font='clasica'], [data-font='rubrica']) .page-lead {
+    max-width: 68ch;
+    font-size: 17px;
+    line-height: 1.6;
+}
+
+html:is([data-font='clasica'], [data-font='rubrica'])
+    :is(.page-kicker, .eyebrow, .run-kicker, .map-camp-label, .map-node-floor) {
+    font-size: 11px;
+    letter-spacing: 1.4px;
+}
+
+html:is([data-font='clasica'], [data-font='rubrica'])
+    :is(.panel-title, .section-title, .gacha-panel h2) {
+    font-family: var(--font-pixel);
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+}
+
+html:is([data-font='clasica'], [data-font='rubrica']) .panel-note {
+    font-size: 15px;
+}
+
+html:is([data-font='clasica'], [data-font='rubrica'])
+    :is(.btn, .btn--sm, .btn--lg) {
+    font-family: var(--font-pixel);
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    line-height: 1.35;
+    text-transform: none;
+}
+
+html:is([data-font='clasica'], [data-font='rubrica']) .btn--sm {
+    font-size: 13px;
+}
+
+html:is([data-font='clasica'], [data-font='rubrica']) .tag {
+    font-size: 12px;
+    letter-spacing: 0.2px;
+}
+
+html:is([data-font='clasica'], [data-font='rubrica']) .tag strong {
+    font-weight: 700;
+}
+
+html:is([data-font='clasica'], [data-font='rubrica']) .chip {
+    font-size: 13px;
+    letter-spacing: 0.1px;
+}
+
+html:is([data-font='clasica'], [data-font='rubrica'])
+    :is(.rail-link, .nav-link, .theme-font-copy strong) {
+    font-size: 11px;
+    letter-spacing: 0.4px;
+}
+
+html:is([data-font='clasica'], [data-font='rubrica'])
+    :is(.recent-item .recent-meta, .progress-item .label, .progress-item .count) {
+    font-size: 11px;
+    letter-spacing: 0.2px;
+}
+
+html:is([data-font='clasica'], [data-font='rubrica'])
+    :is(.offer-title, .offer-price, .log-entry .log-turn) {
+    font-family: var(--font-pixel);
+    font-size: 12px;
+    letter-spacing: 0.2px;
+}
+
+html:is([data-font='clasica'], [data-font='rubrica'])
+    :is(.fighter-name, .fighter-lv) {
+    font-size: 12px;
+    letter-spacing: 0.2px;
+}
+
+html:is([data-font='clasica'], [data-font='rubrica']) .run-stat {
+    font-size: 10px;
+    letter-spacing: 0.6px;
+}
+
+html:is([data-font='clasica'], [data-font='rubrica']) .run-stat strong {
+    font-size: 15px;
+    font-weight: 700;
+}
+
+html:is([data-font='clasica'], [data-font='rubrica']) .run-title {
+    font-size: clamp(26px, 3vw, 34px);
+    font-weight: 700;
+}
+
+html:is([data-font='clasica'], [data-font='rubrica']) .run-map-status {
+    font-size: 15px;
+}
+
+html:is([data-font='clasica'], [data-font='rubrica'])
+    :is(.map-node-name, .run-target-copy p, .run-map-hint) {
+    font-size: 15px;
+}
+
+html:is([data-font='clasica'], [data-font='rubrica']) .map-node-floor {
+    font-size: 10px;
+}
+
+html:is([data-font='clasica'], [data-font='rubrica']) .map-node-reward {
+    font-size: 11px;
+}
+
+html:is([data-font='clasica'], [data-font='rubrica']) .map-camp-label {
+    font-size: 10px;
+}
+
+html:is([data-font='clasica'], [data-font='rubrica']) .run-target-copy h3 {
+    font-size: 19px;
+    font-weight: 700;
+}
+
+html:is([data-font='clasica'], [data-font='rubrica'])
+    :is(.run-target-stats span, .run-target-note, .run-team-power, .run-result-copy span,
+        .run-result-rewards, .run-history .history-row) {
+    font-size: 15px;
+}
+
+html:is([data-font='clasica'], [data-font='rubrica']) .run-team-power strong {
+    font-size: 14px;
+}
+
+html:is([data-font='clasica'], [data-font='rubrica']) .run-result-copy strong {
+    font-size: 19px;
+    font-weight: 700;
+}
+
+html:is([data-font='clasica'], [data-font='rubrica']) .run-rift,
+html:is([data-font='clasica'], [data-font='rubrica'])
+    :is(.run-history summary, .run-battle-log summary) {
+    font-size: 12px;
+    letter-spacing: 0.5px;
+}
+
+html:is([data-font='clasica'], [data-font='rubrica']) .battle-log {
+    font-size: 15px;
+}
+
+html:is([data-font='clasica'], [data-font='rubrica']) .run-back {
+    font-size: 22px;
+}
+
+/* ==========================================================================
+   Adaptación del descenso
+   ========================================================================== */
+
+@media (max-width: 1040px) {
+    .run-layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .run-side {
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    }
+}
+
+@media (max-width: 700px) {
+    .run-head {
+        align-items: flex-start;
+    }
+
+    .run-stats {
+        width: 100%;
+    }
+
+    .run-stat {
+        flex: 1 1 auto;
+        justify-content: center;
+    }
+
+    .run-side {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .map-node {
+        width: 96px;
+        padding: 6px 5px;
+    }
+
+    .map-node-art {
+        width: 54px;
+        height: 54px;
+    }
+
+    .map-walker {
+        width: 30px;
+        height: 36px;
+    }
+
+    .map-branch-line {
+        left: 27%;
+        right: 27%;
+    }
+
+    .run-map {
+        padding: 10px;
+    }
+
+    .run-result {
+        align-items: flex-start;
+    }
+}
+
+@media (max-width: 460px) {
+    .run-title {
+        font-size: 20px;
+    }
+
+    .run-stats {
+        gap: 6px;
+    }
+
+    .map-node {
+        width: 88px;
+    }
+
+    .map-node-name {
+        font-size: 12px;
+    }
+
+    .run-map-foot {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .map-party {
+        transition: none;
+    }
+
+    .map-party.is-walking .map-walker {
+        animation: none;
+    }
+}
+
+/* Etiquetas pequeñas: legibles también en las fuentes clásicas */
+html:is([data-font='clasica'], [data-font='rubrica'])
+    :is(.launcher-play-copy strong, .launcher-user-copy strong, .launcher-bottom-center strong) {
+    font-size: 13px;
+    letter-spacing: 0.2px;
+}
+
+html:is([data-font='clasica'], [data-font='rubrica']) .launcher-bottom {
+    font-size: 13px;
+}
+
+html:is([data-font='clasica'], [data-font='rubrica']) .rail-foot-label {
+    font-size: 10px;
+    letter-spacing: 0.4px;
+}
+
+html:is([data-font='clasica'], [data-font='rubrica'])
+    :is(.client-kicker, .client-hero-kicker, .client-block-meta, .client-module-tag) {
+    font-size: 12px;
+    letter-spacing: 0.8px;
+}
+
+html:is([data-font='clasica'], [data-font='rubrica'])
+    :is(.summon-card-tag, .summon-card-title, .summon-card-price) {
+    font-size: 12px;
+    letter-spacing: 0.2px;
+}
+
+html:is([data-font='clasica'], [data-font='rubrica'])
+    :is(.pity-head > span, .pity-head > strong, .pity-head span) {
+    font-size: 12px;
+    letter-spacing: 0.2px;
+}
+
+html:is([data-font='clasica'], [data-font='rubrica']) .gacha-showcase-name {
+    font-size: 12px;
+    letter-spacing: 0.2px;
+}
+
+html:is([data-font='clasica'], [data-font='rubrica'])
+    :is(.mission-btn, .mission-count) {
+    font-size: 12px;
+    letter-spacing: 0.2px;
+}
+
+html:is([data-font='clasica'], [data-font='rubrica'])
+    :is(.card-badge, .card-meta, .card-meta span, .card-chip) {
+    font-size: 12px;
+    letter-spacing: 0.1px;
+}
+
+html:is([data-font='clasica'], [data-font='rubrica']) .card-stars {
+    font-size: 12px;
+}
+
+html:is([data-font='clasica'], [data-font='rubrica']) .slot-level {
+    font-size: 11px;
+    letter-spacing: 0.1px;
+}
+
+html:is([data-font='clasica'], [data-font='rubrica']) .dungeon-progress-note {
+    font-size: 13px;
+    letter-spacing: 0.1px;
+}
+
+html:is([data-font='clasica'], [data-font='rubrica']) .dungeon-card[data-theme] .dungeon-name {
+    font-family: var(--font-pixel);
+    font-size: clamp(24px, 2.6vw, 32px);
+    font-weight: 700;
+    letter-spacing: -0.2px;
+    line-height: 1.15;
+}
+
+html:is([data-font='clasica'], [data-font='rubrica']) .run-history .history-row .res {
+    font-size: 12px;
+}
+
+html:is([data-font='clasica'], [data-font='rubrica']) .mission-copy strong {
+    font-size: 13px;
+    letter-spacing: 0.1px;
+}

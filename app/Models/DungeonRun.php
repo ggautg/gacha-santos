@@ -8,12 +8,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class DungeonRun extends Model
 {
     protected $fillable = [
-        'player_id', 'dungeon', 'seed', 'floor',
+        'player_id', 'dungeon', 'seed', 'floor', 'route',
     ];
 
     protected $casts = [
         'seed' => 'integer',
         'floor' => 'integer',
+        'route' => 'integer',
     ];
 
     public function player(): BelongsTo

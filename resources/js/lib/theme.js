@@ -1,14 +1,15 @@
 import { ref } from 'vue';
 
 const THEME_KEY = 'sanctorum.theme';
-const FONT_KEY = 'sanctorum.font';
+// v2: la tipografía legible pasa a ser la opción por defecto.
+const FONT_KEY = 'sanctorum.font.v2';
 
 export const THEMES = [
     {
         key: 'clasico',
         name: 'Sanctorum',
         note: 'Púrpura y oro',
-        font: 'pixel',
+        font: 'clasica',
         accent: '#5a4a9a',
         accent2: '#f2c94c',
         ink: '#0b0818',
@@ -17,7 +18,7 @@ export const THEMES = [
         key: 'pecados',
         name: 'Pecados',
         note: 'Carmesí y oro',
-        font: 'pixel',
+        font: 'clasica',
         accent: '#d14a3f',
         accent2: '#f2c94c',
         ink: '#150507',
@@ -35,7 +36,7 @@ export const THEMES = [
         key: 'catacumbas',
         name: 'Catacumbas',
         note: 'Verde hueso',
-        font: 'hueso',
+        font: 'clasica',
         accent: '#8fb26b',
         accent2: '#e4d8a8',
         ink: '#0c110c',
@@ -70,7 +71,7 @@ export const FONTS = [
 ];
 
 export const currentTheme = ref('clasico');
-export const currentFont = ref('pixel');
+export const currentFont = ref('clasica');
 
 function readStored(key) {
     try {
@@ -97,7 +98,7 @@ function findTheme(key) {
 }
 
 function findFont(key) {
-    return FONTS.find((font) => font.key === key) ?? FONTS[0];
+    return FONTS.find((font) => font.key === key) ?? FONTS.find((font) => font.key === 'clasica');
 }
 
 function syncMeta(theme) {
@@ -115,7 +116,7 @@ export function applyFont(key, { persist = true } = {}) {
     document.documentElement.dataset.font = font.key;
 
     if (persist) {
-        storeValue(FONT_KEY, font.key === 'pixel' ? null : font.key);
+        storeValue(FONT_KEY, font.key);
     }
 }
 
@@ -140,7 +141,7 @@ export function applyTheme(key, { persist = true, font } = {}) {
 
 export function resetTheme() {
     applyTheme('clasico');
-    applyFont('pixel');
+    applyFont('clasica');
 }
 
 /**

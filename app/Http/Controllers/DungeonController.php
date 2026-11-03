@@ -119,10 +119,12 @@ class DungeonController extends Controller
                 'accent2' => $config['accent2'] ?? '#f2c94c',
                 'best_floor' => DungeonRules::bestFloor($player, $dungeon),
                 'run_floor' => $run->floor,
+                'route' => $run->route,
                 'cleared' => DungeonRules::clearedCount($player, $dungeon),
                 'unlock_text' => DungeonRules::unlockText($dungeon),
             ],
             'encounter' => $encounter,
+            'path' => DungeonRules::pathPreview($player, $dungeon, $run),
             'roster' => $copies->map(fn (SaintCopy $copy) => CardPresenter::saint($copy->saint, $copy))->values(),
             'teamIds' => $teamIds,
             'history' => $history,
@@ -157,6 +159,31 @@ class DungeonController extends Controller
         }
 
         return response()->json($result);
+    }
+
+    public function chooseRoute(Request $request, string $dungeon)
+    {
+        abort_unless(DungeonRules::exists($dungeon), 404);
+
+        /** @var Player $player */
+        $player = $request->attributes->get('player');
+
+        if (! DungeonRules::isUnlocked($player, $dungeon)) {
+            return response()->json([
+                'message' => DungeonRules::unlockText($dungeon),
+            ], 403);
+        }
+
+        $data = $request->validate([
+            'branch' => ['required', 'integer', 'min:0', 'max:1'],
+        ]);
+
+        $run = DungeonRules::chooseRoute($player, $dungeon, (int) $data['branch']);
+
+        return response()->json([
+            'branch' => $run->route,
+            'encounter' => DungeonRules::encounter($player, $dungeon, $run->floor, $run),
+        ]);
     }
 
     public function restart(Request $request, string $dungeon)

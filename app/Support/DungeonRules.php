@@ -51,7 +51,7 @@ final class DungeonRules
 
         return DungeonRun::firstOrCreate(
             ['player_id' => $player->id, 'dungeon' => $key],
-            ['seed' => random_int(1, 2_147_483_647), 'floor' => 1],
+            ['seed' => random_int(1, 2_147_483_647), 'floor' => 1, 'route' => 0],
         );
     }
 
@@ -65,6 +65,7 @@ final class DungeonRules
         $run = self::run($player, $key);
         $run->seed = random_int(1, 2_147_483_647);
         $run->floor = 1;
+        $run->route = 0;
         $run->save();
 
         return $run;
@@ -80,7 +81,69 @@ final class DungeonRules
         $run ??= self::run($player, $key);
         $floor = max(1, $floor ?? $run->floor);
 
-        return self::encounterFor($key, $run->seed, $floor);
+        return self::encounterFor($key, $run->seed, $floor, $run->route);
+    }
+
+    /**
+     * Fija el camino elegido para el piso actual.
+     */
+    public static function chooseRoute(Player $player, string $key, int $branch): DungeonRun
+    {
+        $run = self::run($player, $key);
+        $run->route = max(0, min(1, $branch));
+        $run->save();
+
+        return $run;
+    }
+
+    /**
+     * Cantidad de caminos que se abren en un piso: algunos se bifurcan y otros no.
+     */
+    public static function forkCount(string $key, int $seed, int $floor): int
+    {
+        if ($floor <= 1) {
+            return 2;
+        }
+
+        $roll = (int) hexdec(substr(md5($seed.'|fork|'.$key.'|'.$floor), 0, 8));
+
+        return $roll % 100 < 35 ? 1 : 2;
+    }
+
+    /**
+     * Mapa de los próximos pisos con las opciones de cada bifurcación.
+     *
+     * @return list<array{floor: int, options: list<array<string, mixed>>}>
+     */
+    public static function pathPreview(Player $player, string $key, ?DungeonRun $run = null, int $depth = 3): array
+    {
+        $run ??= self::run($player, $key);
+        $rows = [];
+
+        for ($floor = $run->floor; $floor < $run->floor + max(1, $depth); $floor++) {
+            $options = [];
+
+            foreach (range(0, self::forkCount($key, $run->seed, $floor) - 1) as $branch) {
+                $encounter = self::encounterFor($key, $run->seed, $floor, $branch);
+
+                $options[] = [
+                    'branch' => $branch,
+                    'floor' => $encounter['floor'],
+                    'name' => $encounter['name'],
+                    'subtitle' => $encounter['subtitle'],
+                    'enemy' => $encounter['enemy'],
+                    'sprite' => $encounter['sprite'],
+                    'hp' => $encounter['hp'],
+                    'atk' => $encounter['atk'],
+                    'grace' => $encounter['grace'],
+                    'xp' => $encounter['xp'],
+                ];
+            }
+
+            $rows[] = ['floor' => $floor, 'options' => $options];
+        }
+
+        return $rows;
     }
 
     /**
@@ -88,10 +151,10 @@ final class DungeonRules
      *
      * @return array<string, mixed>
      */
-    public static function encounterFor(string $key, int $seed, int $floor): array
+    public static function encounterFor(string $key, int $seed, int $floor, int $route = 0): array
     {
         $dungeon = self::get($key);
-        $boss = self::bossFor($key, $seed, $floor);
+        $boss = self::bossFor($key, $seed, $floor, $route);
         $scaled = self::scale($boss, $floor, $dungeon);
 
         return [
@@ -108,23 +171,43 @@ final class DungeonRules
      *
      * @return array<string, mixed>
      */
-    public static function bossFor(string $key, int $seed, int $floor): array
+    public static function bossFor(string $key, int $seed, int $floor, int $route = 0): array
     {
         $dungeon = self::get($key);
         $bosses = $dungeon['bosses'];
         $count = count($bosses);
         $floor = max(1, $floor);
 
-        $index = self::roll($seed, $key, 1) % $count;
+        $index = self::roll($seed, $key, 1, $route) % $count;
+        $previousIndex = null;
 
         for ($step = 2; $step <= $floor; $step++) {
-            $next = self::roll($seed, $key, $step) % $count;
+            $previousIndex = $index;
+            $next = self::roll($seed, $key, $step, $route) % $count;
 
             if ($next === $index) {
                 $next = ($next + 1) % $count;
             }
 
             $index = $next;
+        }
+
+        // En una bifurcación los dos caminos deben llevar a jefes distintos.
+        if ($route > 0) {
+            $baseEnemy = self::bossFor($key, $seed, $floor)['enemy'];
+
+            if ($bosses[$index]['enemy'] === $baseEnemy) {
+                for ($offset = 1; $offset < $count; $offset++) {
+                    $candidate = ($index + $offset) % $count;
+
+                    if ($bosses[$candidate]['enemy'] === $baseEnemy || $candidate === $previousIndex) {
+                        continue;
+                    }
+
+                    $index = $candidate;
+                    break;
+                }
+            }
         }
 
         return $bosses[$index];
@@ -194,6 +277,7 @@ final class DungeonRules
 
         if ($run->floor <= $floor) {
             $run->floor = $floor + 1;
+            $run->route = 0;
             $run->save();
         }
 
@@ -235,8 +319,10 @@ final class DungeonRules
         return 'Criatura sin nombre';
     }
 
-    private static function roll(int $seed, string $key, int $floor): int
+    private static function roll(int $seed, string $key, int $floor, int $route = 0): int
     {
-        return (int) hexdec(substr(md5($seed.'|'.$key.'|'.$floor), 0, 8));
+        $salt = $route > 0 ? '|r'.$route : '';
+
+        return (int) hexdec(substr(md5($seed.'|'.$key.'|'.$floor.$salt), 0, 8));
     }
 }

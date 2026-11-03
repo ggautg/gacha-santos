@@ -15,11 +15,10 @@ defineProps({
     <header class="page-head">
         <div>
             <span class="page-kicker">Sanctorum · Descensos procedurales</span>
-            <h1 class="page-title">Mazmorras que nunca se repiten</h1>
+            <h1 class="page-title">Elige tu descenso</h1>
             <p class="page-lead">
-                Cada entrada abre un descenso nuevo: los jefes se escogen al azar, los pisos no
-                tienen final y cada mazmorra impone su propia paleta y tipografía a toda la web.
-                Prepara tu equipo en el campamento antes de cruzar la puerta.
+                Cada mazmorra se genera al azar. Entra, elige un camino y mira a tus santos
+                abrirse paso hasta el jefe del piso.
             </p>
         </div>
         <div class="btn-row">
@@ -39,10 +38,6 @@ defineProps({
             :style="{ '--accent': dungeon.accent, '--accent2': dungeon.accent2 }"
         >
             <div class="dungeon-banner">
-                <div class="dungeon-theme-line">
-                    <span class="dungeon-kicker">Descenso procedural</span>
-                    <span class="dungeon-font">{{ dungeon.font_name }}</span>
-                </div>
                 <h2 class="dungeon-name">{{ dungeon.name }}</h2>
                 <p class="dungeon-sub">{{ dungeon.subtitle }}</p>
                 <span v-if="!dungeon.unlocked" class="dungeon-seal" aria-hidden="true">✕</span>
@@ -67,7 +62,7 @@ defineProps({
                             <span v-else aria-hidden="true">✦</span>
                         </div>
                         <div class="dungeon-next-copy">
-                            <span class="eyebrow">Piso {{ dungeon.next?.floor ?? dungeon.run_floor }} · jefe al azar</span>
+                            <span class="eyebrow">Piso {{ dungeon.next?.floor ?? dungeon.run_floor }}</span>
                             <strong>{{ dungeon.next?.name ?? 'La puerta aguarda' }}</strong>
                             <span class="panel-note">{{ dungeon.next?.subtitle }}</span>
                         </div>
@@ -78,16 +73,8 @@ defineProps({
                         <div class="dungeon-next-copy">
                             <span class="eyebrow">Sellada</span>
                             <strong>{{ dungeon.unlock_text }}</strong>
-                            <span class="panel-note">Aún no puedes cruzar esta puerta.</span>
                         </div>
                     </div>
-                </div>
-
-                <div v-if="dungeon.unlocked && dungeon.next" class="dungeon-next-stats">
-                    <span class="tag">Vida <strong>{{ dungeon.next.hp }}</strong></span>
-                    <span class="tag">Ataque <strong>{{ dungeon.next.atk }}</strong></span>
-                    <span class="tag">Puntos de Fe <strong>{{ dungeon.next.grace }}</strong></span>
-                    <span class="tag">XP <strong>{{ dungeon.next.xp }}</strong></span>
                 </div>
 
                 <div class="meter" :class="dungeon.unlocked ? '' : 'meter--violet'">
@@ -95,39 +82,19 @@ defineProps({
                 </div>
                 <div class="dungeon-progress-note">
                     <span>Mejor piso · {{ dungeon.best_floor }}</span>
-                    <span>Descenso actual · {{ dungeon.run_floor }}</span>
                     <span>{{ dungeon.cleared }} limpios</span>
                 </div>
 
-                <p v-if="dungeon.tagline" class="dungeon-tagline">«{{ dungeon.tagline }}»</p>
-
-                <div class="btn-row">
+                <div v-if="dungeon.unlocked" class="btn-row">
                     <Link
-                        v-if="dungeon.unlocked"
                         :href="`/mazmorras/${dungeon.key}`"
                         class="btn btn--gold btn--sm"
                         @click="play('click')"
                     >
-                        {{ dungeon.cleared > 0 ? 'Volver al campamento' : 'Acampar y descender' }}
+                        {{ dungeon.cleared > 0 ? 'Volver al campamento' : 'Entrar al descenso' }}
                     </Link>
-                    <span v-else class="panel-note">{{ dungeon.unlock_text }}</span>
                 </div>
             </div>
         </article>
-    </div>
-
-    <div class="panel" style="margin-top: 18px">
-        <div class="panel-head">
-            <h2 class="panel-title">Cómo funciona el descenso</h2>
-        </div>
-        <div class="panel-body">
-            <p class="panel-note">
-                No hay una escalera fija: cada descenso tiene una semilla propia y el jefe de cada
-                piso se elige al azar entre el elenco de la mazmorra. Los pisos no terminan y sus
-                criaturas ganan vida, ataque y botín con la profundidad. Elige hasta tres santos en
-                el campamento antes de presentar batalla; si caes, puedes reintentar el mismo piso o
-                abrir una grieta nueva para cambiar el elenco. Los combates no cuestan Puntos de Fe.
-            </p>
-        </div>
     </div>
 </template>

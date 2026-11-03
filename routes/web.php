@@ -27,4 +27,5 @@ Route::post('/equipo', [TeamController::class, 'save'])->name('team.save');
 Route::get('/mazmorras', [DungeonController::class, 'index'])->name('dungeons');
 Route::get('/mazmorras/{dungeon}', [DungeonController::class, 'show'])->name('dungeons.show');
 Route::post('/mazmorras/{dungeon}/batalla', [DungeonController::class, 'fight'])->name('dungeons.fight');
+Route::post('/mazmorras/{dungeon}/ruta', [DungeonController::class, 'chooseRoute'])->name('dungeons.route');
 Route::post('/mazmorras/{dungeon}/reiniciar', [DungeonController::class, 'restart'])->name('dungeons.restart');
