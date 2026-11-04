@@ -28,4 +28,6 @@ Route::get('/mazmorras', [DungeonController::class, 'index'])->name('dungeons');
 Route::get('/mazmorras/{dungeon}', [DungeonController::class, 'show'])->name('dungeons.show');
 Route::post('/mazmorras/{dungeon}/batalla', [DungeonController::class, 'fight'])->name('dungeons.fight');
 Route::post('/mazmorras/{dungeon}/ruta', [DungeonController::class, 'chooseRoute'])->name('dungeons.route');
+Route::post('/mazmorras/{dungeon}/paso', [DungeonController::class, 'step'])->name('dungeons.step');
+Route::post('/mazmorras/{dungeon}/equipo', [DungeonController::class, 'team'])->name('dungeons.team');
 Route::post('/mazmorras/{dungeon}/reiniciar', [DungeonController::class, 'restart'])->name('dungeons.restart');

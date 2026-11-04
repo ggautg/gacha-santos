@@ -9,12 +9,16 @@ class DungeonRun extends Model
 {
     protected $fillable = [
         'player_id', 'dungeon', 'seed', 'floor', 'route',
+        'team', 'vitals', 'blessing',
     ];
 
     protected $casts = [
         'seed' => 'integer',
         'floor' => 'integer',
         'route' => 'integer',
+        'team' => 'array',
+        'vitals' => 'array',
+        'blessing' => 'integer',
     ];
 
     public function player(): BelongsTo

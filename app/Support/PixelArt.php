@@ -83,6 +83,26 @@ final class PixelArt
             'bg1' => '#0b1c22', 'bg2' => '#123039', 'body' => '#2f7d8a', 'dark' => '#1c5360',
             'eye' => '#a8f0ff', 'aura' => '#49b8c9', 'features' => ['horns', 'tail', 'teeth', 'crown', 'snake'],
         ],
+        'diablillo' => [
+            'bg1' => '#1f0d10', 'bg2' => '#36151a', 'body' => '#b83a34', 'dark' => '#76201f',
+            'eye' => '#ffe14d', 'aura' => '#e05a3d', 'features' => ['horns', 'wings', 'tail', 'teeth'],
+        ],
+        'succubo' => [
+            'bg1' => '#200f1b', 'bg2' => '#361a2f', 'body' => '#b4497a', 'dark' => '#7a2b52',
+            'eye' => '#ffc2e6', 'aura' => '#e05a9a', 'features' => ['horns', 'aura', 'eyes3'],
+        ],
+        'demonio' => [
+            'bg1' => '#1c0b0c', 'bg2' => '#341214', 'body' => '#9c2f28', 'dark' => '#641c18',
+            'eye' => '#ff8a4d', 'aura' => '#c0392b', 'features' => ['horns', 'wings', 'teeth', 'tail'],
+        ],
+        'sombra' => [
+            'bg1' => '#0c0a17', 'bg2' => '#181228', 'body' => '#332a52', 'dark' => '#1d1732',
+            'eye' => '#c9a7ff', 'aura' => '#6b4ec4', 'features' => ['wisp', 'eyes3', 'aura'],
+        ],
+        'gargola' => [
+            'bg1' => '#14161a', 'bg2' => '#232830', 'body' => '#6d747c', 'dark' => '#3f454c',
+            'eye' => '#ffd75e', 'aura' => '#8a939c', 'features' => ['horns', 'wings', 'statue', 'teeth'],
+        ],
         'soberbia' => [
             'bg1' => '#1b1428', 'bg2' => '#2b1f3d', 'body' => '#d4af37', 'dark' => '#8a6b21',
             'eye' => '#fff0b0', 'aura' => '#f2c94c', 'features' => ['crown', 'statue', 'aura'],

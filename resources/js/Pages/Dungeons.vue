@@ -7,6 +7,38 @@ defineProps({
     deepest: { type: Number, default: 0 },
     player: { type: Object, required: true },
 });
+
+function nodeGlyph(kind) {
+    switch (kind) {
+        case 'camp':
+            return '✦';
+        case 'altar':
+            return '✚';
+        case 'trap':
+            return '⚠';
+        case 'boss':
+            return '☠';
+        default:
+            return '⚔';
+    }
+}
+
+function nodeLabel(kind) {
+    switch (kind) {
+        case 'camp':
+            return 'Campamento';
+        case 'altar':
+            return 'Altar';
+        case 'trap':
+            return 'Trampa';
+        case 'boss':
+            return 'Jefe';
+        case 'battle':
+            return 'Combate';
+        default:
+            return 'Descenso';
+    }
+}
 </script>
 
 <template>
@@ -54,15 +86,15 @@ defineProps({
                     <div v-if="dungeon.unlocked" class="dungeon-next-inner">
                         <div class="dungeon-portrait">
                             <img
-                                v-if="dungeon.next"
+                                v-if="dungeon.next?.sprite"
                                 :src="dungeon.next.sprite"
                                 :alt="dungeon.next.name"
                                 draggable="false"
                             />
-                            <span v-else aria-hidden="true">✦</span>
+                            <span v-else aria-hidden="true">{{ nodeGlyph(dungeon.next?.kind) }}</span>
                         </div>
                         <div class="dungeon-next-copy">
-                            <span class="eyebrow">Piso {{ dungeon.next?.floor ?? dungeon.run_floor }}</span>
+                            <span class="eyebrow">{{ nodeLabel(dungeon.next?.kind) }} · Piso {{ dungeon.next?.floor ?? dungeon.run_floor }}</span>
                             <strong>{{ dungeon.next?.name ?? 'La puerta aguarda' }}</strong>
                             <span class="panel-note">{{ dungeon.next?.subtitle }}</span>
                         </div>

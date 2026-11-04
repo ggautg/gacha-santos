@@ -15,13 +15,15 @@ class BattleService
 {
     private const MAX_ROUNDS = 30;
 
+    private const MAX_ENEMIES = 4;
+
     /**
-     * Resuelve el piso actual de un descenso procedural.
+     * Resuelve el combate del paso actual de un descenso procedural.
      *
      * @param  array<int, int>  $teamIds
      * @return array<string, mixed>
      */
-    public function fightDungeon(Player $player, string $dungeonKey, array $teamIds): array
+    public function fightDungeon(Player $player, string $dungeonKey, array $teamIds = []): array
     {
         DungeonRules::get($dungeonKey);
 
@@ -31,57 +33,25 @@ class BattleService
             ]);
         }
 
-        $team = $this->resolveTeam($player, $teamIds);
         $run = DungeonRules::run($player, $dungeonKey);
-        $floor = $run->floor;
-        $encounter = DungeonRules::encounter($player, $dungeonKey, $floor, $run);
+        $encounter = DungeonRules::currentNode($player, $dungeonKey, $run);
 
-        return $this->resolve($player, $encounter, $floor, $dungeonKey, $team);
-    }
+        if (! in_array($encounter['kind'], ['battle', 'boss'], true)) {
+            throw ValidationException::withMessages([
+                'battle' => 'Este paso no se resuelve con una batalla.',
+            ]);
+        }
 
-    /**
-     * Valida que el equipo exista en el santoral y respeta el orden elegido.
-     *
-     * @param  array<int, int>  $teamIds
-     * @return list<SaintCopy>
-     */
-    private function resolveTeam(Player $player, array $teamIds): array
-    {
-        $ids = array_values(array_unique(array_map('intval', $teamIds)));
+        // El equipo vive en el descenso y solo se edita en los campamentos.
+        $team = DungeonRules::teamCopies($player, $run);
 
-        if (empty($ids)) {
+        if (empty($team)) {
             throw ValidationException::withMessages([
                 'team' => 'Elige al menos un santo antes de entrar en la mazmorra.',
             ]);
         }
 
-        if (count($ids) > 3) {
-            throw ValidationException::withMessages([
-                'team' => 'Solo puedes llevar tres santos al descenso.',
-            ]);
-        }
-
-        $copies = SaintCopy::with('saint')
-            ->where('player_id', $player->id)
-            ->whereIn('saint_id', $ids)
-            ->get()
-            ->keyBy('saint_id');
-
-        $team = [];
-
-        foreach ($ids as $id) {
-            $copy = $copies->get($id);
-
-            if ($copy === null) {
-                throw ValidationException::withMessages([
-                    'team' => 'Ese santo no forma parte de tu santoral.',
-                ]);
-            }
-
-            $team[] = $copy;
-        }
-
-        return $team;
+        return $this->resolve($player, $encounter, $run, $dungeonKey, $team);
     }
 
     /**
@@ -89,14 +59,26 @@ class BattleService
      * @param  list<SaintCopy>  $team
      * @return array<string, mixed>
      */
-    private function resolve(Player $player, array $encounter, int $floor, string $dungeonKey, array $team): array
+    private function resolve(Player $player, array $encounter, DungeonRun $run, string $dungeonKey, array $team): array
     {
+        $floor = (int) $encounter['floor'];
+        $vitals = DungeonRules::vitalsFor($player, $run);
+        $blessing = (int) $run->blessing;
         $units = [];
+        $allyIds = [];
+        $teamIds = [];
 
         foreach ($team as $i => $copy) {
             $stats = $copy->stats();
             $saint = $copy->saint;
             $id = 'a'.($i + 1);
+            $maxHp = max(1, (int) $stats['hp']);
+            $hp = max(0, min((int) ($vitals[$copy->saint_id]['hp'] ?? $maxHp), $maxHp));
+            $atk = max(1, (int) $stats['atk']);
+
+            if ($blessing > 0) {
+                $atk = max(1, (int) round($atk * (1 + $blessing / 100)));
+            }
 
             $units[$id] = [
                 'id' => $id,
@@ -104,11 +86,11 @@ class BattleService
                 'name' => $saint->name,
                 'short' => $this->shortName($saint->name),
                 'level' => $copy->level,
-                'hp' => $stats['hp'],
-                'maxHp' => $stats['hp'],
-                'atk' => $stats['atk'],
-                'def' => $stats['def'],
-                'spd' => $stats['spd'],
+                'hp' => $hp,
+                'maxHp' => $maxHp,
+                'atk' => $atk,
+                'def' => max(0, (int) $stats['def']),
+                'spd' => max(1, (int) $stats['spd']),
                 'gauge' => 0,
                 'shield' => 0,
                 'buff' => 0.0,
@@ -119,36 +101,39 @@ class BattleService
                 'skillPower' => $saint->skill_power,
                 'sprite' => CardPresenter::artUrl($saint),
                 'rarity' => $saint->rarity,
+                'summoner' => false,
             ];
+
+            $allyIds[$id] = $copy->saint_id;
+            $teamIds[] = $copy->saint_id;
         }
 
-        $units['b1'] = [
-            'id' => 'b1',
-            'side' => 'foe',
-            'name' => $encounter['name'],
-            'short' => $encounter['name'],
-            'level' => $floor,
-            'hp' => $encounter['hp'],
-            'maxHp' => $encounter['hp'],
-            'atk' => $encounter['atk'],
-            'def' => $encounter['def'],
-            'spd' => $encounter['spd'],
-            'gauge' => 0,
-            'shield' => 0,
-            'buff' => 0.0,
-            'buffTurns' => 0,
-            'stun' => false,
-            'skillType' => $encounter['skill'],
-            'skillName' => $encounter['skill_name'],
-            'skillPower' => $encounter['skill_power'],
-            'sprite' => CardPresenter::foeUrl($encounter['enemy']),
-            'rarity' => 5,
-        ];
+        foreach ($encounter['mobs'] ?? [] as $index => $mob) {
+            $id = 'b'.($index + 1);
+            $units[$id] = $this->foeUnit(
+                $id,
+                $mob,
+                $floor,
+                $encounter['kind'] === 'boss' && $index === 0,
+            );
+        }
+
+        $summonTemplates = array_values($encounter['summons'] ?? []);
+        $summonChance = (int) ($encounter['summon_chance'] ?? 0);
+        $summonIndex = count($encounter['mobs'] ?? []);
 
         $initial = $units;
         $log = [['t' => 'start', 'text' => $encounter['name'].' — '.$encounter['subtitle']]];
 
+        if ($blessing > 0) {
+            $log[] = [
+                't' => 'buff',
+                'text' => 'La bendición de la Virgen inflama al equipo (+'.$blessing.'% de ataque).',
+            ];
+        }
+
         $round = 0;
+
         while ($round < self::MAX_ROUNDS) {
             $allies = $this->alive($units, 'ally');
             $foes = $this->alive($units, 'foe');
@@ -168,6 +153,7 @@ class BattleService
                 }
 
                 $opponents = $this->alive($units, $units[$id]['side'] === 'ally' ? 'foe' : 'ally');
+
                 if (empty($opponents)) {
                     break;
                 }
@@ -183,7 +169,26 @@ class BattleService
 
                 if ($units[$id]['gauge'] >= 3) {
                     $units[$id]['gauge'] = 0;
-                    $this->castSkill($units, $id, $log);
+
+                    $canSummon = $units[$id]['summoner']
+                        && $summonTemplates !== []
+                        && count($this->alive($units, 'foe')) < self::MAX_ENEMIES
+                        && mt_rand(1, 100) <= $summonChance;
+
+                    if ($canSummon) {
+                        $summonIndex++;
+                        $summonId = 'b'.$summonIndex;
+                        $template = $summonTemplates[array_rand($summonTemplates)];
+                        $units[$summonId] = $this->foeUnit($summonId, $template, $floor);
+                        $log[] = [
+                            't' => 'summon',
+                            'actor' => $id,
+                            'unit' => $units[$summonId],
+                            'text' => $units[$id]['short'].' invoca a '.$units[$summonId]['short'].'.',
+                        ];
+                    } else {
+                        $this->castSkill($units, $id, $log);
+                    }
                 } else {
                     $target = $opponents[array_rand($opponents)];
                     $result = $this->hit($units, $id, $target);
@@ -225,25 +230,40 @@ class BattleService
 
         $log[] = ['t' => 'end', 'result' => $win ? 'win' : 'lose'];
 
-        return DB::transaction(function () use ($player, $encounter, $floor, $dungeonKey, $units, $initial, $log, $win, $grace, $xp, $team) {
+        return DB::transaction(function () use ($player, $encounter, $run, $floor, $dungeonKey, $units, $initial, $log, $win, $grace, $xp, $team, $allyIds, $teamIds) {
             /** @var Player $player */
             $player = Player::whereKey($player->id)->lockForUpdate()->firstOrFail();
 
+            /** @var DungeonRun $run */
+            $run = DungeonRun::whereKey($run->id)->lockForUpdate()->firstOrFail();
+
             $dungeon = DungeonRules::get($dungeonKey);
-            $teamIds = array_map(fn (SaintCopy $copy) => $copy->saint_id, $team);
 
             $player->grace += $grace;
             $player->team = $teamIds;
             $win ? $player->wins++ : $player->losses++;
             $player->save();
 
-            /** @var DungeonRun $run */
-            $run = $win
-                ? DungeonRules::markCleared($player, $dungeonKey, $floor)
-                : DungeonRules::run($player, $dungeonKey);
+            $nextVitals = [];
 
-            $bestFloor = DungeonRules::bestFloor($player, $dungeonKey);
-            $nextEncounter = DungeonRules::encounter($player, $dungeonKey, $run->floor, $run);
+            foreach ($allyIds as $unitId => $saintId) {
+                $nextVitals[$saintId] = max(0, (int) ($units[$unitId]['hp'] ?? 0));
+            }
+
+            if (! $win) {
+                // Al caer, el equipo recupera el aliento para poder reintentar.
+                foreach ($team as $copy) {
+                    $nextVitals[$copy->saint_id] = max(1, (int) $copy->stats()['hp']);
+                }
+            }
+
+            $run->vitals = $nextVitals;
+            $run->blessing = 0;
+            $run->save();
+
+            if ($win) {
+                $run = DungeonRules::markCleared($player, $dungeonKey, $floor, $run);
+            }
 
             $levelUps = [];
 
@@ -265,11 +285,17 @@ class BattleService
                 'log' => $log,
             ]);
 
+            $state = DungeonRules::state($player, $dungeonKey, $run);
+
             return [
                 'result' => $win ? 'win' : 'lose',
                 'floor' => $floor,
                 'stage' => $floor,
                 'stage_name' => $encounter['name'],
+                'kind' => $encounter['kind'],
+                'map_index' => $encounter['map_index'] ?? 1,
+                'room' => $encounter['room'] ?? 1,
+                'rooms' => $encounter['rooms'] ?? 1,
                 'dungeon' => $dungeonKey,
                 'dungeon_name' => $dungeon['name'],
                 'theme' => $dungeon['theme'] ?? $dungeonKey,
@@ -282,13 +308,21 @@ class BattleService
                     'wins' => $player->wins,
                     'losses' => $player->losses,
                 ],
-                'team' => $teamIds,
+                'team' => $state['team'],
+                'vitals' => $state['vitals'],
+                'blessing' => $state['blessing'],
                 'levels' => $levelUps,
-                'best_floor' => $bestFloor,
-                'run_floor' => $run->floor,
-                'next_encounter' => $nextEncounter,
+                'best_floor' => $state['best_floor'],
+                'cleared' => $state['cleared'],
+                'run_floor' => $state['run_floor'],
+                'route' => $state['route'],
+                'path' => $state['path'],
+                'map' => $state['map'],
+                'next_encounter' => $state['encounter'],
                 'history_entry' => [
                     'floor' => $floor,
+                    'map_index' => $encounter['map_index'] ?? 1,
+                    'room' => $encounter['room'] ?? 1,
                     'name' => $encounter['name'],
                     'enemy' => $encounter['enemy'],
                     'result' => $win ? 'win' : 'lose',
@@ -297,6 +331,39 @@ class BattleService
                 ],
             ];
         });
+    }
+
+    /**
+     * @param  array<string, mixed>  $mob
+     * @return array<string, mixed>
+     */
+    private function foeUnit(string $id, array $mob, int $floor, bool $summoner = false): array
+    {
+        $hp = max(1, (int) ($mob['hp'] ?? 1));
+
+        return [
+            'id' => $id,
+            'side' => 'foe',
+            'name' => $mob['name'] ?? 'Criatura',
+            'short' => $mob['name'] ?? 'Criatura',
+            'level' => (int) ($mob['level'] ?? $floor),
+            'hp' => $hp,
+            'maxHp' => $hp,
+            'atk' => max(1, (int) ($mob['atk'] ?? 1)),
+            'def' => max(0, (int) ($mob['def'] ?? 0)),
+            'spd' => max(1, (int) ($mob['spd'] ?? 1)),
+            'gauge' => 0,
+            'shield' => 0,
+            'buff' => 0.0,
+            'buffTurns' => 0,
+            'stun' => false,
+            'skillType' => $mob['skill'] ?? 'smite',
+            'skillName' => $mob['skill_name'] ?? 'Ataque',
+            'skillPower' => (int) ($mob['skill_power'] ?? 100),
+            'sprite' => $mob['sprite'] ?? CardPresenter::foeUrl((string) ($mob['enemy'] ?? 'susurro')),
+            'rarity' => 5,
+            'summoner' => $summoner,
+        ];
     }
 
     /**

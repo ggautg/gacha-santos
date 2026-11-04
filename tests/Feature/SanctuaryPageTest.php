@@ -77,7 +77,7 @@ class SanctuaryPageTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Dungeons')
-                ->has('dungeons', 3));
+                ->has('dungeons', 1));
 
         $this->get('/mazmorras/pecados')
             ->assertOk()
