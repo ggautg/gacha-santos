@@ -16,19 +16,18 @@ class GachaService
     /**
      * Realiza una o diez oraciones y devuelve las cartas obtenidas.
      */
-    public function pull(Player $player, int $count = 1, bool $free = false): array
+    public function pull(Player $player, int $count = 1): array
     {
         $count = $count >= 10 ? 10 : 1;
         $config = config('sanctorum');
 
-        return DB::transaction(function () use ($player, $count, $free, $config) {
+        return DB::transaction(function () use ($player, $count, $config) {
             /** @var Player $player */
             $player = Player::whereKey($player->id)->lockForUpdate()->firstOrFail();
 
-            $free = $free && $count === 1 && $player->freePullReady();
-            $cost = $free ? 0 : ($count === 10 ? $config['ten_pull_cost'] : $config['pull_cost'] * $count);
+            $cost = $count === 10 ? $config['ten_pull_cost'] : $config['pull_cost'];
 
-            if ($cost > 0 && $player->grace < $cost) {
+            if ($player->grace < $cost) {
                 throw ValidationException::withMessages([
                     'gacha' => 'No tienes suficientes Puntos de Fe. Gana más descendiendo a las mazmorras.',
                 ]);
@@ -93,23 +92,16 @@ class GachaService
                 }
             }
 
-            if ($free) {
-                $player->free_pull_at = now()->addHours($config['free_pull_hours']);
-            }
-
             $player->team = array_values(array_unique($team));
             $player->save();
 
             return [
                 'ok' => true,
-                'free' => $free,
                 'batch' => $batch,
                 'cards' => $cards,
                 'grace' => $player->grace,
                 'pity' => $player->pity,
                 'pity_max' => $config['pity'],
-                'free_ready' => $player->freePullReady(),
-                'free_in' => $player->secondsUntilFreePull(),
                 'team' => $player->teamIds(),
             ];
         });

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Saint;
+use App\Support\CardPresenter;
 use Database\Seeders\SaintSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -46,13 +47,13 @@ class SanctuaryPageTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Gacha')
-                ->where('featured.slug', 'san-miguel-arcangel')
                 ->where('costs.single', (int) config('sanctorum.pull_cost'))
                 ->where('costs.ten', (int) config('sanctorum.ten_pull_cost'))
                 ->where('player.pity_max', (int) config('sanctorum.pity'))
                 ->has('rates', 5)
-                ->has('banner')
-                ->has('recent'));
+                ->missing('featured')
+                ->missing('banner')
+                ->missing('recent'));
     }
 
     public function test_the_collection_team_and_dungeon_pages_render(): void
@@ -105,5 +106,19 @@ class SanctuaryPageTest extends TestCase
             ->assertSee('<svg', false);
 
         $this->get('/enemigos/inexistente')->assertNotFound();
+    }
+
+    public function test_battle_sprites_are_full_body_svgs_for_every_saint(): void
+    {
+        $saint = Saint::where('slug', 'san-expedito')->firstOrFail();
+
+        $this->get('/batalla/san-expedito')
+            ->assertOk()
+            ->assertHeader('Content-Type', 'image/svg+xml; charset=utf-8')
+            ->assertSee('viewBox="0 0 24 40"', false);
+
+        $this->get('/batalla/inexistente')->assertNotFound();
+
+        $this->assertSame('/batalla/san-expedito', CardPresenter::battleUrl($saint));
     }
 }

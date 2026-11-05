@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -45,9 +46,8 @@ class HandleInertiaRequests extends Middleware
                 'pity' => $player->pity,
                 'wins' => $player->wins,
                 'losses' => $player->losses,
-                'free_ready' => $player->freePullReady(),
-                'free_in' => $player->secondsUntilFreePull(),
             ] : null,
+            'canResetAccount' => Route::has('dev.account.reset'),
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),

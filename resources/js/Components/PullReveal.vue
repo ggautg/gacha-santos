@@ -4,7 +4,6 @@ import SaintCard from './SaintCard.vue';
 
 const props = defineProps({
     cards: { type: Array, required: true },
-    free: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(['close']);
@@ -66,7 +65,6 @@ onBeforeUnmount(() => {
 
             <p class="reveal-note">
                 {{ freshCount }} nuevo(s) · {{ cards.length - freshCount }} repetido(s)
-                <template v-if="free"> · Oración gratuita consumida</template>
             </p>
 
             <div class="reveal-grid">

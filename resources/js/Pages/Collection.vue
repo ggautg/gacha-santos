@@ -162,7 +162,7 @@ async function levelUp(saint) {
                 <circle cx="7" cy="7" r="4.5" />
                 <path d="M10.5 10.5 14 14" />
             </svg>
-            <input v-model="search" type="search" placeholder="Buscar por nombre o patronazgo…" aria-label="Buscar santos" />
+            <input v-model="search" type="search" placeholder="Buscar santo…" aria-label="Buscar santos" />
         </label>
 
         <label class="toggle">

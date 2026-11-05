@@ -28,24 +28,12 @@ class CollectionController extends Controller
             ->orderBy('name')
             ->get();
 
-        $ownedCards = [];
-        $veiledCards = [];
+        $ownedSaints = $saints->filter(fn (Saint $saint) => $copies->has($saint->id));
+        $veiledSaints = $saints->reject(fn (Saint $saint) => $copies->has($saint->id));
 
-        foreach ($saints as $saint) {
-            $copy = $copies->get($saint->id);
-
-            if ($copy) {
-                $ownedCards[] = CardPresenter::saint($saint, $copy);
-            } else {
-                $veiledCards[] = [
-                    'order' => md5($saint->slug),
-                    'card' => CardPresenter::veiled($saint),
-                ];
-            }
-        }
-
-        $cards = collect($ownedCards)
-            ->concat(collect($veiledCards)->sortBy('order')->pluck('card'))
+        $cards = $ownedSaints
+            ->map(fn (Saint $saint) => CardPresenter::saint($saint, $copies->get($saint->id)))
+            ->concat($veiledSaints->map(fn (Saint $saint) => CardPresenter::veiled($saint)))
             ->values();
 
         $rarityTotals = Saint::selectRaw('rarity, count(*) as total')

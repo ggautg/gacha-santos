@@ -11,7 +11,6 @@ import { toast } from '../lib/toast';
 const props = defineProps({
     dungeon: { type: Object, required: true },
     encounter: { type: Object, required: true },
-    path: { type: Array, default: () => [] },
     map: { type: Object, default: () => ({}) },
     roster: { type: Array, default: () => [] },
     teamIds: { type: Array, default: () => [] },
@@ -22,27 +21,20 @@ const props = defineProps({
 });
 
 const battleEndpoint = computed(() => `/mazmorras/${props.dungeon.key}/batalla`);
-const routeEndpoint = computed(() => `/mazmorras/${props.dungeon.key}/ruta`);
+const moveEndpoint = computed(() => `/mazmorras/${props.dungeon.key}/mover`);
 const stepEndpoint = computed(() => `/mazmorras/${props.dungeon.key}/paso`);
 const teamEndpoint = computed(() => `/mazmorras/${props.dungeon.key}/equipo`);
-
-const ROW_HEIGHT = 50;
-const BOARD_TOP = 42;
-const BOARD_BOTTOM = 34;
-const NODE_HALF = 20;
 
 const team = ref([...props.teamIds]);
 const savedTeam = ref([...props.teamIds]);
 const current = ref({ ...props.encounter });
-const mapRows = ref([...(props.path ?? [])]);
-const mapInfo = ref({ ...props.map });
+const mapState = ref({ ...props.map });
 const vitals = ref({ ...props.vitals });
 const blessing = ref(props.blessing ?? 0);
 const bestFloor = ref(props.dungeon.best_floor);
 const runFloor = ref(props.dungeon.run_floor);
 const grace = ref(props.player.grace ?? 0);
 const history = ref([...props.history]);
-const selectedBranch = ref(props.dungeon.route ?? 0);
 const lastOutcome = ref(null);
 
 const phase = ref('idle');
@@ -66,6 +58,64 @@ const logBox = ref(null);
 const rosterPanel = ref(null);
 const rosterOpen = ref(props.teamIds.length === 0);
 const walking = ref(false);
+const journalTab = ref('equipo');
+
+const ZOOM_MIN = 1;
+const ZOOM_MAX = 2.5;
+const zoom = ref(1);
+const pan = reactive({ x: 0, y: 0 });
+const drag = reactive({ active: false, x: 0, y: 0 });
+const boardStyle = computed(() => ({
+    aspectRatio: boardRatio.value,
+    transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom.value})`,
+}));
+
+function setZoom(value) {
+    zoom.value = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(value * 100) / 100));
+
+    if (zoom.value <= 1) {
+        pan.x = 0;
+        pan.y = 0;
+    }
+}
+
+function zoomBy(step) {
+    setZoom(zoom.value + step);
+}
+
+function resetView() {
+    zoom.value = 1;
+    pan.x = 0;
+    pan.y = 0;
+}
+
+function onWheel(event) {
+    zoomBy(event.deltaY < 0 ? 0.15 : -0.15);
+}
+
+function onDragStart(event) {
+    if (zoom.value <= 1 || event.button !== 0) {
+        return;
+    }
+
+    drag.active = true;
+    drag.x = event.clientX - pan.x;
+    drag.y = event.clientY - pan.y;
+    event.currentTarget.setPointerCapture(event.pointerId);
+}
+
+function onDragMove(event) {
+    if (!drag.active) {
+        return;
+    }
+
+    pan.x = event.clientX - drag.x;
+    pan.y = event.clientY - drag.y;
+}
+
+function onDragEnd() {
+    drag.active = false;
+}
 
 let runToken = 0;
 let floatKey = 0;
@@ -89,71 +139,37 @@ const canFight = computed(
 const canChoose = computed(
     () => phase.value !== 'running' && !choosing.value && !stepping.value && !submitting.value,
 );
-const currentRowIndex = computed(() => {
-    const index = mapRows.value.findIndex((row) => row.status === 'current');
+const mapRooms = computed(() => mapState.value.rooms ?? []);
+const roomById = computed(() => new Map(mapRooms.value.map((room) => [room.id, room])));
+const currentRoom = computed(() => roomById.value.get(mapState.value.room) ?? null);
+const clearedCount = computed(() => mapRooms.value.filter((room) => room.cleared).length);
+const currentCleared = computed(() => mapRooms.value.find((room) => room.current)?.cleared ?? false);
+const boardRatio = computed(() => `${mapState.value.width ?? 9} / ${mapState.value.height ?? 3}`);
 
-    return index >= 0 ? index : 0;
-});
-const currentRow = computed(() => mapRows.value[currentRowIndex.value] ?? null);
-const branchCount = computed(() => currentRow.value?.options?.length ?? 1);
-const selectedOptionIndex = computed(() => {
-    const row = currentRow.value;
+const walkerX = computed(() => cellX(currentRoom.value?.x ?? 0));
+const walkerY = computed(() => cellY(currentRoom.value?.y ?? 0));
 
-    if (!row) {
-        return 0;
-    }
-
-    const index = row.options.findIndex((option) => option.branch === selectedBranch.value);
-
-    return index >= 0 ? index : 0;
-});
-
-const roomsLeft = computed(() => Math.max(0, (mapInfo.value.length ?? 0) - (mapInfo.value.room ?? 0)));
-
-const boardHeight = computed(
-    () => BOARD_TOP + Math.max(0, mapRows.value.length - 1) * ROW_HEIGHT + NODE_HALF + BOARD_BOTTOM,
-);
-
-const currentPosition = computed(() => {
-    const row = currentRow.value;
-
-    if (!row) {
-        return { x: 50, y: BOARD_TOP };
-    }
-
-    return {
-        x: nodeX(selectedOptionIndex.value, row.options.length),
-        y: rowY(currentRowIndex.value),
-    };
-});
-
-const walkerX = computed(() => currentPosition.value.x);
-
-const walkerY = computed(() => currentPosition.value.y);
-
-const connectors = computed(() => {
+const corridors = computed(() => {
     const segments = [];
+    const drawn = new Set();
 
-    for (let index = 1; index < mapRows.value.length; index++) {
-        const previous = mapRows.value[index - 1];
-        const row = mapRows.value[index];
-        const previousXs = rowXs(previous);
-        const currentXs = rowXs(row);
-        const midY = (rowY(index - 1) + rowY(index)) / 2;
-        const allXs = [...new Set([...previousXs, ...currentXs])];
-        const minX = Math.min(...allXs);
-        const maxX = Math.max(...allXs);
+    for (const room of mapRooms.value) {
+        for (const otherId of room.links) {
+            const other = roomById.value.get(otherId);
+            const key = `${Math.min(room.id, otherId)}-${Math.max(room.id, otherId)}`;
 
-        if (maxX - minX > 0.01) {
-            segments.push({ x1: minX, y1: midY, x2: maxX, y2: midY });
-        }
+            if (!other || drawn.has(key)) {
+                continue;
+            }
 
-        for (const x of previousXs) {
-            segments.push({ x1: x, y1: rowY(index - 1) + NODE_HALF, x2: x, y2: midY });
-        }
-
-        for (const x of currentXs) {
-            segments.push({ x1: x, y1: midY, x2: x, y2: rowY(index) - NODE_HALF });
+            drawn.add(key);
+            segments.push({
+                x1: room.x + 0.5,
+                y1: room.y + 0.5,
+                x2: other.x + 0.5,
+                y2: other.y + 0.5,
+                fog: !other.known,
+            });
         }
     }
 
@@ -166,7 +182,7 @@ const statusText = computed(() => {
     }
 
     if (stepping.value) {
-        return 'Resolviendo el paso…';
+        return 'Resolviendo la sala…';
     }
 
     if (result.value?.result === 'lose') {
@@ -180,18 +196,22 @@ const statusText = computed(() => {
             return 'Altar de la Virgen';
         case 'trap':
             return 'Trampa en el camino';
+        case 'treasure':
+            return 'Arca de limosnas';
+        case 'gospel':
+            return 'Página de los Evangelios';
         case 'boss':
             return 'El jefe aguarda';
         case 'battle':
             return 'Criaturas al acecho';
         default:
-            return branchCount.value > 1 ? 'Elige uno de los caminos' : 'Camino único';
+            return 'Sala';
     }
 });
 
 const mapHint = computed(() => {
     if (isCamp.value) {
-        return 'Descansa y ajusta tu equipo antes de seguir bajando.';
+        return 'Descansa y ajusta tu equipo. Desde aquí puedes seguir explorando.';
     }
 
     if (current.value.kind === 'altar') {
@@ -202,66 +222,35 @@ const mapHint = computed(() => {
         return 'Un paso en falso puede costarte vida o Puntos de Fe.';
     }
 
-    if (branchCount.value > 1) {
-        return 'Toca uno de los caminos del plano para que tus santos lo recorran.';
+    if (current.value.kind === 'treasure') {
+        return 'Abre el arca para recoger los Puntos de Fe que guarda.';
     }
 
-    return roomsLeft.value > 0
-        ? `Sigue el corredor: el jefe aguarda al fondo, a ${roomsLeft.value} salas.`
-        : 'El jefe aguarda al fondo del piso.';
+    if (current.value.kind === 'gospel') {
+        return 'Lee el fragmento: recibes Puntos de Fe y una bendición para la próxima batalla.';
+    }
+
+    if (!mapState.value.resolved) {
+        return 'Presenta batalla para despejar la sala y poder seguir explorando.';
+    }
+
+    return 'Elige una sala conectada. El jefe se esconde en algún rincón del laberinto.';
 });
 
-function nodeX(index, count) {
-    if (count <= 1) {
-        return 50;
-    }
-
-    return index === 0 ? 32 : 68;
+function cellX(x) {
+    return ((x + 0.5) / (mapState.value.width || 1)) * 100;
 }
 
-function rowY(index) {
-    return BOARD_TOP + index * ROW_HEIGHT;
+function cellY(y) {
+    return ((y + 0.5) / (mapState.value.height || 1)) * 100;
 }
 
-function rowXs(row) {
-    const count = row?.options?.length ?? 1;
-
-    return count <= 1 ? [50] : [32, 68];
+function roomLabel(room) {
+    return room.known ? nodeLabel(room.kind) : 'Sin explorar';
 }
 
-function nodeTag(option, row) {
-    if (row.status === 'current') {
-        if (option.kind === 'camp' && row.offset === 0) {
-            return 'Entrada';
-        }
-
-        return row.options.length > 1 ? 'Camino' : 'Aquí';
-    }
-
-    if (option.kind === 'camp') {
-        return 'Camp';
-    }
-
-    if (option.kind === 'boss') {
-        return 'Jefe';
-    }
-
-    return '';
-}
-
-function nodeGlyph(kind) {
-    switch (kind) {
-        case 'camp':
-            return '✦';
-        case 'altar':
-            return '✚';
-        case 'trap':
-            return '⚠';
-        case 'boss':
-            return '☠';
-        default:
-            return '⚔';
-    }
+function roomGlyph(room) {
+    return room.known ? nodeGlyph(room.kind) : '?';
 }
 
 function nodeLabel(kind) {
@@ -272,12 +261,35 @@ function nodeLabel(kind) {
             return 'Altar';
         case 'trap':
             return 'Trampa';
+        case 'treasure':
+            return 'Tesoro';
+        case 'gospel':
+            return 'Fragmento';
         case 'boss':
             return 'Jefe';
         case 'battle':
             return 'Combate';
         default:
-            return 'Descenso';
+            return 'Sala';
+    }
+}
+
+function nodeGlyph(kind) {
+    switch (kind) {
+        case 'treasure':
+            return '◆';
+        case 'gospel':
+            return '✞';
+        case 'camp':
+            return '✦';
+        case 'altar':
+            return '✚';
+        case 'trap':
+            return '⚠';
+        case 'boss':
+            return '☠';
+        default:
+            return '⚔';
     }
 }
 
@@ -705,22 +717,12 @@ function applyState(data) {
         patchPlayer({ grace: data.player.grace });
     }
 
-    const selected = typeof data.route === 'number' ? data.route : data.branch;
-
-    if (typeof selected === 'number') {
-        selectedBranch.value = selected;
-    }
-
     if (data.encounter) {
         current.value = { ...data.encounter };
     }
 
-    if (Array.isArray(data.path)) {
-        mapRows.value = data.path;
-    }
-
     if (data.map) {
-        mapInfo.value = { ...data.map };
+        mapState.value = { ...data.map };
     }
 }
 
@@ -731,6 +733,7 @@ function focusRoster() {
     }
 
     rosterOpen.value = true;
+    journalTab.value = 'equipo';
     nextTick(() => {
         rosterPanel.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
@@ -796,12 +799,8 @@ async function saveTeam(silent = false) {
     }
 }
 
-async function chooseBranch(option) {
-    if (!canChoose.value) {
-        return;
-    }
-
-    if (option.branch === selectedBranch.value && !teamDirty.value) {
+async function moveTo(room) {
+    if (!canChoose.value || !room.reachable) {
         return;
     }
 
@@ -812,7 +811,7 @@ async function chooseBranch(option) {
     choosing.value = true;
 
     try {
-        const data = await post(routeEndpoint.value, { branch: option.branch });
+        const data = await post(moveEndpoint.value, { room: room.id });
         applyState(data);
         result.value = null;
         lastOutcome.value = null;
@@ -914,9 +913,7 @@ async function startFight() {
             blessing: data.blessing,
             run_floor: data.run_floor,
             best_floor: data.best_floor,
-            route: data.route,
             encounter: data.next_encounter,
-            path: data.path,
             map: data.map,
             player: data.player,
         });
@@ -926,7 +923,7 @@ async function startFight() {
         play(data.result === 'win' ? 'win' : 'lose');
 
         if (data.result === 'win') {
-            toast.success(`Piso ${data.map_index ?? mapInfo.value.index} · sala ${data.room ?? mapInfo.value.room} conquistada. +${data.rewards.grace} Puntos de Fe.`);
+            toast.success(`Sala despejada. +${data.rewards.grace} Puntos de Fe.`);
         } else {
             toast.error('Has caído. El equipo recupera el aliento para reintentar.');
         }
@@ -1032,418 +1029,494 @@ const logClass = (entry) => {
 <template>
     <Head :title="dungeon.name" />
 
-    <header class="run-head">
-        <div class="run-head-title">
-            <Link href="/mazmorras" class="run-back" aria-label="Volver a las mazmorras" @click="play('click')">←</Link>
-            <div>
-                <span class="run-kicker">Descenso procedural</span>
-                <h1 class="run-title">{{ dungeon.name }}</h1>
-            </div>
-        </div>
-
-        <div class="run-head-actions">
-            <div class="run-stats">
-                <span class="run-stat"><strong>{{ mapInfo.index ?? 1 }}</strong> piso</span>
-                <span class="run-stat"><strong>{{ bestFloor }}</strong> récord</span>
-                <span class="run-stat run-stat--gold"><strong>{{ grace }}</strong> fe</span>
-                <span v-if="blessing > 0" class="run-stat run-stat--blessing">
-                    <strong>+{{ blessing }}%</strong> ataque
-                </span>
-            </div>
-            <button type="button" class="btn btn--ghost btn--sm" :disabled="phase === 'running'" @click="restartRun">
-                Reiniciar descenso
-            </button>
-        </div>
-    </header>
-
-    <div
-        class="run-layout"
-        :style="{ '--dungeon-accent': dungeon.accent, '--dungeon-accent2': dungeon.accent2 }"
-    >
-        <section class="panel run-map">
-            <div class="run-map-head">
-                <h2 class="panel-title">Plano del piso {{ mapInfo.index ?? 1 }}</h2>
-                <span class="run-map-status">{{ statusText }}</span>
-            </div>
-
-            <div class="map-board" :style="{ height: `${boardHeight}px` }">
-                <svg
-                    class="map-links"
-                    :viewBox="`0 0 100 ${boardHeight}`"
-                    preserveAspectRatio="none"
-                    aria-hidden="true"
-                >
-                    <line
-                        v-for="(segment, index) in connectors"
-                        :key="index"
-                        :x1="segment.x1"
-                        :y1="segment.y1"
-                        :x2="segment.x2"
-                        :y2="segment.y2"
-                    />
-                </svg>
-
-                <span class="map-board-label">Entrada</span>
-
-                <div v-for="(row, rowIndex) in mapRows" :key="row.floor" class="map-row">
-                    <button
-                        v-for="(option, optionIndex) in row.options"
-                        :key="option.branch"
-                        type="button"
-                        class="mini-node"
-                        :class="{
-                            'is-current': row.status === 'current',
-                            'is-visited': row.status === 'visited',
-                            'is-future': row.status === 'future',
-                            'is-selected': row.status === 'current' && option.branch === selectedBranch,
-                            'is-locked': row.status === 'current' && !canChoose,
-                            [`is-${option.kind}`]: true,
-                        }"
-                        :style="{ left: `${nodeX(optionIndex, row.options.length)}%`, top: `${rowY(rowIndex)}px` }"
-                        :disabled="row.status !== 'current' || !canChoose || row.options.length < 2"
-                        :aria-label="`${nodeLabel(option.kind)}: ${option.name}`"
-                        :title="`${nodeLabel(option.kind)} · ${option.name}`"
-                        @click="chooseBranch(option)"
-                    >
-                        <span class="mini-node-glyph" aria-hidden="true">{{ nodeGlyph(option.kind) }}</span>
-                        <span v-if="nodeTag(option, row)" class="mini-node-tag">{{ nodeTag(option, row) }}</span>
-                    </button>
+    <div class="mz" :style="{ '--mz-accent': dungeon.accent, '--mz-accent2': dungeon.accent2 }">
+        <header class="mz-head">
+            <div class="mz-head-title">
+                <Link href="/mazmorras" class="mz-back" aria-label="Volver a las mazmorras" @click="play('click')">←</Link>
+                <div>
+                    <span class="mz-kicker">Descenso procedural</span>
+                    <h1 class="mz-title">{{ dungeon.name }}</h1>
                 </div>
+            </div>
+
+            <div class="mz-head-actions">
+                <div class="mz-stats">
+                    <span class="mz-stat"><strong>{{ runFloor }}</strong> piso</span>
+                    <span class="mz-stat"><strong>{{ bestFloor }}</strong> récord</span>
+                    <span class="mz-stat mz-stat--gold">
+                        <span class="coin" aria-hidden="true"></span>
+                        <strong>{{ grace }}</strong>
+                    </span>
+                    <span v-if="blessing > 0" class="mz-stat mz-stat--teal">
+                        <strong>+{{ blessing }}%</strong> ataque
+                    </span>
+                </div>
+                <button type="button" class="mz-btn mz-btn--ghost mz-btn--sm" :disabled="phase === 'running'" @click="restartRun">
+                    Reiniciar descenso
+                </button>
+            </div>
+        </header>
+
+        <div class="mz-layout">
+            <section class="mz-panel mz-map">
+                <header class="mz-panel-head">
+                    <h2 class="mz-panel-title">Laberinto del piso {{ runFloor }}</h2>
+                    <span class="mz-panel-note">{{ statusText }}</span>
+                    <div class="mz-zoom" role="group" aria-label="Zoom del laberinto">
+                        <button type="button" class="mz-btn mz-btn--ghost mz-btn--sm" aria-label="Alejar" :disabled="zoom <= ZOOM_MIN" @click="zoomBy(-0.2)">−</button>
+                        <button type="button" class="mz-btn mz-btn--ghost mz-btn--sm mz-zoom-level" :title="'Restablecer vista'" @click="resetView">
+                            {{ Math.round(zoom * 100) }}%
+                        </button>
+                        <button type="button" class="mz-btn mz-btn--ghost mz-btn--sm" aria-label="Acercar" :disabled="zoom >= ZOOM_MAX" @click="zoomBy(0.2)">+</button>
+                    </div>
+                </header>
 
                 <div
-                    class="map-party"
-                    :class="{ 'is-walking': walking }"
-                    :style="{ left: `${walkerX}%`, top: `${walkerY}px` }"
-                    aria-hidden="true"
+                    class="mz-viewport"
+                    :class="{ 'is-zoomed': zoom > 1, 'is-dragging': drag.active }"
+                    @wheel.prevent="onWheel"
+                    @pointerdown="onDragStart"
+                    @pointermove="onDragMove"
+                    @pointerup="onDragEnd"
+                    @pointercancel="onDragEnd"
                 >
-                    <span v-for="card in teamCards" :key="card.id" class="map-walker">
-                        <img :src="card.art" :alt="card.name" draggable="false" />
-                    </span>
-                    <span v-if="teamCards.length === 0" class="map-walker map-walker--empty">+</span>
+                <div class="mz-board" :class="{ 'is-dragging': drag.active }" :style="boardStyle">
+                    <svg class="mz-links" :viewBox="`0 0 ${mapState.width} ${mapState.height}`" preserveAspectRatio="none" aria-hidden="true">
+                        <line
+                            v-for="(segment, index) in corridors"
+                            :key="index"
+                            :class="{ 'is-fog': segment.fog }"
+                            :x1="segment.x1"
+                            :y1="segment.y1"
+                            :x2="segment.x2"
+                            :y2="segment.y2"
+                        />
+                    </svg>
+
+                    <button
+                        v-for="room in mapRooms"
+                        :key="room.id"
+                        type="button"
+                        class="mz-node"
+                        :class="{
+                            'is-current': room.current,
+                            'is-cleared': room.cleared,
+                            'is-fog': !room.known,
+                            'is-reachable': room.reachable,
+                            [`is-${room.kind}`]: room.known,
+                        }"
+                        :style="{ left: `${cellX(room.x)}%`, top: `${cellY(room.y)}%` }"
+                        :disabled="!room.reachable || !canChoose"
+                        :aria-label="`${roomLabel(room)}`"
+                        :title="roomLabel(room)"
+                        @click="moveTo(room)"
+                    >
+                        <span class="mz-node-glyph" aria-hidden="true">{{ roomGlyph(room) }}</span>
+                        <span v-if="room.reachable" class="mz-node-tag">Ir</span>
+                    </button>
+
+                    <div
+                        class="mz-party"
+                        :class="{ 'is-walking': walking }"
+                        :style="{ left: `${walkerX}%`, top: `${walkerY}%` }"
+                        aria-hidden="true"
+                    >
+                        <span v-for="card in teamCards" :key="card.id" class="mz-walker">
+                            <img :src="card.art" :alt="card.name" draggable="false" />
+                        </span>
+                        <span v-if="teamCards.length === 0" class="mz-walker mz-walker--empty">+</span>
+                    </div>
+                </div>
+                </div>
+
+                <footer class="mz-map-foot">
+                    <div class="mz-legend">
+                        <span class="mz-legend-item is-battle"><span aria-hidden="true">⚔</span> Combate</span>
+                        <span class="mz-legend-item is-camp"><span aria-hidden="true">✦</span> Campamento</span>
+                        <span class="mz-legend-item is-altar"><span aria-hidden="true">✚</span> Altar</span>
+                        <span class="mz-legend-item is-trap"><span aria-hidden="true">⚠</span> Trampa</span>
+                        <span class="mz-legend-item is-treasure"><span aria-hidden="true">◆</span> Tesoro</span>
+                        <span class="mz-legend-item is-gospel"><span aria-hidden="true">✞</span> Fragmento</span>
+                        <span class="mz-legend-item is-boss"><span aria-hidden="true">☠</span> Jefe</span>
+                        <span class="mz-legend-item is-fog"><span aria-hidden="true">?</span> Sin explorar</span>
+                    </div>
+
+                    <p class="mz-hint">{{ mapHint }}</p>
+
+                    <button v-if="phase === 'running'" type="button" class="mz-btn mz-btn--ghost mz-btn--sm" @click="skipAnimation">
+                        Saltar animación
+                    </button>
+                </footer>
+            </section>
+
+            <aside class="mz-side">
+                <template v-if="battleVisible">
+        <section v-if="battleVisible" class="mz-panel mz-battle">
+            <header class="mz-panel-head">
+                <h2 class="mz-panel-title">Combate</h2>
+                <span class="mz-panel-note">{{ statusText }}</span>
+                <button v-if="phase === 'running'" type="button" class="mz-btn mz-btn--ghost mz-btn--sm" @click="skipAnimation">
+                    Saltar
+                </button>
+            </header>
+
+            <div class="mz-arena">
+                <div class="mz-arena-vs" aria-hidden="true">VS</div>
+
+                <div class="mz-field">
+                    <div class="mz-side-units">
+                        <div v-for="unit in allies" :key="unit.id" class="mz-fighter" :class="fighterClass(unit)">
+                            <span
+                                v-if="floatFor(unit.id)"
+                                :key="floatFor(unit.id).key"
+                                class="mz-float"
+                                :class="{ 'is-heal': floatFor(unit.id).type === 'heal', 'is-shield': floatFor(unit.id).type === 'shield', 'is-crit': floatFor(unit.id).type === 'crit' }"
+                            >
+                                {{ floatFor(unit.id).text }}
+                            </span>
+                            <img :src="unit.sprite" :alt="unit.name" draggable="false" />
+                            <span class="mz-fighter-name">{{ unit.short }}</span>
+                            <span class="mz-fighter-lv">Nv. {{ unit.level }}</span>
+                            <div class="mz-hp" :class="hpClass(unit)">
+                                <span class="mz-hp-bar" :style="{ width: `${hpPercent(unit)}%` }"></span>
+                                <span v-if="shields[unit.id]" class="mz-shield" :style="{ width: `${shieldPercent(unit)}%` }"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mz-side-units mz-side-units--foe" :class="{ 'is-crowded': foes.length > 2 }">
+                        <div
+                            v-for="(unit, index) in foes"
+                            :key="unit.id"
+                            class="mz-fighter mz-fighter--foe"
+                            :class="fighterClass(unit)"
+                        >
+                            <span
+                                v-if="floatFor(unit.id)"
+                                :key="floatFor(unit.id).key"
+                                class="mz-float"
+                                :class="{ 'is-heal': floatFor(unit.id).type === 'heal', 'is-shield': floatFor(unit.id).type === 'shield', 'is-crit': floatFor(unit.id).type === 'crit' }"
+                            >
+                                {{ floatFor(unit.id).text }}
+                            </span>
+                            <img :src="unit.sprite" :alt="unit.name" draggable="false" />
+                            <span class="mz-fighter-name">{{ unit.short }}</span>
+                            <span class="mz-fighter-lv">{{ isBoss && index === 0 ? 'Jefe' : `Nv. ${unit.level}` }}</span>
+                            <div class="mz-hp" :class="hpClass(unit)">
+                                <span class="mz-hp-bar" :style="{ width: `${hpPercent(unit)}%` }"></span>
+                                <span v-if="shields[unit.id]" class="mz-shield" :style="{ width: `${shieldPercent(unit)}%` }"></span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div class="run-map-foot">
-                <div class="map-legend">
-                    <span class="map-legend-item is-battle"><span aria-hidden="true">⚔</span> Combate</span>
-                    <span class="map-legend-item is-camp"><span aria-hidden="true">✦</span> Campamento</span>
-                    <span class="map-legend-item is-altar"><span aria-hidden="true">✚</span> Altar</span>
-                    <span class="map-legend-item is-trap"><span aria-hidden="true">⚠</span> Trampa</span>
-                    <span class="map-legend-item is-boss"><span aria-hidden="true">☠</span> Jefe</span>
+            <div v-if="phase === 'done' && result" class="mz-result" :class="{ 'is-lose': result.result !== 'win' }">
+                <div class="mz-result-copy">
+                    <strong>{{ result.result === 'win' ? '¡Victoria!' : 'Derrota' }}</strong>
+                    <span>Piso {{ result.floor }} · {{ result.stage_name }}</span>
                 </div>
 
-                <p class="run-map-hint">{{ mapHint }}</p>
+                <div class="mz-result-rewards">
+                    <span>Fe <strong>+{{ result.rewards.grace }}</strong></span>
+                    <span>XP <strong>+{{ result.rewards.xp }}</strong></span>
+                    <span v-if="result.levels?.length" class="mz-levels">
+                        Suben: {{ result.levels.map((level) => level.name).join(', ') }}
+                    </span>
+                </div>
 
-                <button
-                    v-if="phase === 'running'"
-                    type="button"
-                    class="btn btn--ghost btn--sm"
-                    @click="skipAnimation"
-                >
-                    Saltar animación
-                </button>
+                <div class="mz-actions">
+                    <button v-if="result.result !== 'win'" type="button" class="mz-btn mz-btn--ghost mz-btn--sm" @click="retry">
+                        Reintentar
+                    </button>
+                    <button v-else type="button" class="mz-btn mz-btn--sm" @click="dismissResult">
+                        Continuar
+                    </button>
+                </div>
+            </div>
+
+        </section>
+                <section class="mz-panel mz-combat-log">
+                    <header class="mz-panel-head">
+                        <h2 class="mz-panel-title">Crónica del combate</h2>
+                    </header>
+                    <div class="mz-panel-body">
+                    <div ref="logBox" class="mz-log" aria-live="polite">
+                        <p v-if="logEntries.length === 0" class="mz-note">La crónica aparecerá al presentar batalla.</p>
+                        <div
+                            v-for="entry in logEntries"
+                            :key="entry.key"
+                            class="mz-log-entry"
+                            :class="logClass(entry)"
+                        >
+                            <span v-if="entry.turn" class="mz-log-turn">{{ entry.turn }}</span>
+                            <span>{{ entry.text }}</span>
+                        </div>
+                    </div>
+                    </div>
+                </section>
+                </template>
+                <template v-else>
+                <section class="mz-panel mz-encounter">
+                    <header class="mz-panel-head">
+                        <h2 class="mz-panel-title">Encuentro</h2>
+                        <span class="mz-panel-note">{{ nodeLabel(current.kind) }} · {{ clearedCount }}/{{ mapRooms.length }} salas</span>
+                    </header>
+
+                    <div class="mz-panel-body">
+                        <div class="mz-target">
+                            <span class="mz-target-art" :class="`is-${current.kind}`">
+                                <img v-if="current.sprite" :src="current.sprite" :alt="current.name" draggable="false" />
+                                <span v-else class="mz-target-glyph" aria-hidden="true">{{ nodeGlyph(current.kind) }}</span>
+                            </span>
+                            <div class="mz-target-copy">
+                                <h3>{{ current.name }}</h3>
+                                <p>{{ current.subtitle }}</p>
+                            </div>
+                        </div>
+
+                        <div v-if="isBattle" class="mz-target-stats">
+                            <span>Vida <strong>{{ current.hp }}</strong></span>
+                            <span v-if="current.mob_count > 1">Criaturas <strong>{{ current.mob_count }}</strong></span>
+                            <span>Ataque <strong>{{ current.atk }}</strong></span>
+                            <span>Fe <strong>+{{ current.grace }}</strong></span>
+                            <span>XP <strong>+{{ current.xp }}</strong></span>
+                        </div>
+
+                        <div v-else-if="isCamp" class="mz-target-stats">
+                            <span>Descanso <strong>{{ current.rest }}%</strong></span>
+                            <span v-if="blessing > 0">Bendición <strong>+{{ blessing }}%</strong></span>
+                        </div>
+
+                        <div v-else-if="current.kind === 'altar'" class="mz-target-stats">
+                            <span>Curación <strong>{{ current.heal }}%</strong></span>
+                            <span>Bendición <strong>+{{ current.blessing }}%</strong></span>
+                        </div>
+
+                        <div v-else-if="current.kind === 'trap'" class="mz-target-stats">
+                            <span>{{ current.effect === 'grace' ? 'Robo de Fe' : 'Daño' }} <strong>{{ current.power }}%</strong></span>
+                        </div>
+
+                        <blockquote v-if="current.kind === 'gospel' && current.verse" class="mz-verse">
+                            «{{ current.verse }}»
+                        </blockquote>
+
+                        <div v-else-if="current.kind === 'gospel'" class="mz-target-stats">
+                            <span>Fe <strong>+{{ current.reward }}</strong></span>
+                            <span>Bendición <strong>+10%</strong></span>
+                        </div>
+
+                        <div v-else-if="current.kind === 'treasure'" class="mz-target-stats">
+                            <span>Fe <strong>+{{ current.treasure }}</strong></span>
+                        </div>
+
+                        <button
+                            v-if="isBattle"
+                            type="button"
+                            class="mz-btn mz-btn--block"
+                            :disabled="!canFight || submitting"
+                            @click="startFight"
+                        >
+                            {{ phase === 'running' ? 'Batalla en curso…' : (result?.result === 'lose' ? 'Reintentar batalla' : 'Presentar batalla') }}
+                        </button>
+
+                        <div v-else-if="isCamp" class="mz-actions">
+                            <button type="button" class="mz-btn" :disabled="stepping || currentCleared" @click="resolveAction('rest')">
+                                {{ currentCleared ? 'Ya descansaste aquí' : 'Descansar' }}
+                            </button>
+                            <button type="button" class="mz-btn mz-btn--ghost" :disabled="!canEditTeam" @click="focusRoster">
+                                Cambiar equipo
+                            </button>
+                        </div>
+
+                        <div v-else-if="current.kind === 'altar' && !mapState.resolved" class="mz-actions">
+                            <button type="button" class="mz-btn" :disabled="stepping" @click="resolveAction('heal')">
+                                Curar
+                            </button>
+                            <button type="button" class="mz-btn mz-btn--ghost" :disabled="stepping" @click="resolveAction('bless')">
+                                Bendecir
+                            </button>
+                        </div>
+
+                        <div v-else-if="current.kind === 'trap' && !mapState.resolved" class="mz-actions">
+                            <button type="button" class="mz-btn mz-btn--block" :disabled="stepping" @click="resolveAction('cross')">
+                                Cruzar la trampa
+                            </button>
+                        </div>
+
+                        <div v-else-if="current.kind === 'gospel' && !mapState.resolved" class="mz-actions">
+                            <button type="button" class="mz-btn mz-btn--block" :disabled="stepping" @click="resolveAction('read')">
+                                Leer el fragmento
+                            </button>
+                        </div>
+
+                        <div v-else-if="current.kind === 'treasure' && !mapState.resolved" class="mz-actions">
+                            <button type="button" class="mz-btn mz-btn--block" :disabled="stepping" @click="resolveAction('open')">
+                                Abrir el arca
+                            </button>
+                        </div>
+
+                        <p v-if="lastOutcome" class="mz-outcome">{{ lastOutcome.text }}</p>
+
+                        <p v-if="team.length === 0" class="mz-note">Elige al menos un santo para descender.</p>
+                        <p v-else-if="isCamp && teamDirty" class="mz-note">Tienes cambios sin guardar en el equipo.</p>
+                    </div>
+                </section>
+                <section class="mz-panel mz-combat-log">
+                    <header class="mz-panel-head">
+                        <h2 class="mz-panel-title">Crónica del combate</h2>
+                    </header>
+                    <div class="mz-panel-body">
+                    <div ref="logBox" class="mz-log" aria-live="polite">
+                        <p v-if="logEntries.length === 0" class="mz-note">La crónica aparecerá al presentar batalla.</p>
+                        <div
+                            v-for="entry in logEntries"
+                            :key="entry.key"
+                            class="mz-log-entry"
+                            :class="logClass(entry)"
+                        >
+                            <span v-if="entry.turn" class="mz-log-turn">{{ entry.turn }}</span>
+                            <span>{{ entry.text }}</span>
+                        </div>
+                    </div>
+                    </div>
+                </section>
+                </template>
+            </aside>
+        </div>
+
+        <section class="mz-panel mz-journal">
+            <header class="mz-panel-head">
+                <h2 class="mz-panel-title">Diario</h2>
+                <div class="mz-tabs" role="tablist" aria-label="Diario del descenso">
+                    <button
+                        type="button"
+                        class="mz-tab"
+                        role="tab"
+                        :class="{ 'is-active': journalTab === 'equipo' }"
+                        :aria-selected="journalTab === 'equipo'"
+                        @click="journalTab = 'equipo'"
+                    >
+                        Equipo
+                        <span class="mz-tab-count">{{ team.length }}/3</span>
+                    </button>
+                    <button
+                        type="button"
+                        class="mz-tab"
+                        role="tab"
+                        :class="{ 'is-active': journalTab === 'cronicas' }"
+                        :aria-selected="journalTab === 'cronicas'"
+                        @click="journalTab = 'cronicas'"
+                    >
+                        Crónicas recientes
+                        <span class="mz-tab-count">{{ history.length }}</span>
+                    </button>
+                </div>
+            </header>
+
+        <div v-show="journalTab === 'equipo'" ref="rosterPanel" class="mz-journal-body mz-team-pane">
+
+                    <div class="mz-panel-body">
+                        <div class="mz-slots">
+                            <div
+                                v-for="(slot, index) in slots"
+                                :key="index"
+                                class="mz-slot"
+                                :class="{ 'is-filled': slot }"
+                                :style="slot ? { '--rarity': slot.rarity_color } : {}"
+                                :role="slot ? undefined : 'button'"
+                                :tabindex="slot ? undefined : 0"
+                                @click="!slot && focusRoster()"
+                                @keydown.enter="!slot && focusRoster()"
+                            >
+                                <template v-if="slot">
+                                    <button
+                                        v-if="canEditTeam"
+                                        type="button"
+                                        class="mz-slot-remove"
+                                        :aria-label="`Quitar a ${slot.name}`"
+                                        @click.stop="toggle(slot)"
+                                    >
+                                        ✕
+                                    </button>
+                                    <img :src="slot.art" :alt="slot.name" draggable="false" />
+                                    <span class="mz-slot-name">{{ shortName(slot.name) }}</span>
+                                    <span class="mz-slot-vitals" :class="vitalClass(slot)">
+                                        <span class="mz-slot-bar">
+                                            <span :style="{ width: `${vitalPercent(slot)}%` }"></span>
+                                        </span>
+                                        <span class="mz-slot-text">{{ vitalFor(slot.id).hp }} / {{ vitalFor(slot.id).max }}</span>
+                                    </span>
+                                </template>
+                                <template v-else>
+                                    <span class="mz-slot-empty">
+                                        <span class="mz-plus" aria-hidden="true">+</span>
+                                        Añadir
+                                    </span>
+                                </template>
+                            </div>
+                        </div>
+
+                        <div class="mz-team-foot">
+                            <span class="mz-power"><strong>{{ localPower }}</strong> poder</span>
+                            <span v-if="blessing > 0" class="mz-blessing">+{{ blessing }}% ataque</span>
+                            <button
+                                v-if="canEditTeam"
+                                type="button"
+                                class="mz-btn mz-btn--ghost mz-btn--sm"
+                                :disabled="phase === 'running'"
+                                @click="rosterOpen = !rosterOpen"
+                            >
+                                {{ rosterOpen ? 'Cerrar' : 'Cambiar' }}
+                            </button>
+                            <span v-else class="mz-lock">Equipo fijado</span>
+                        </div>
+
+                        <button
+                            v-if="canEditTeam && teamDirty"
+                            type="button"
+                            class="mz-btn mz-btn--block"
+                            :disabled="teamSaving"
+                            @click="saveTeam(false)"
+                        >
+                            {{ teamSaving ? 'Guardando…' : 'Guardar equipo' }}
+                        </button>
+
+                        <div v-if="rosterOpen && canEditTeam" class="mz-roster">
+                            <SaintCard
+                                v-for="saint in roster"
+                                :key="saint.id"
+                                :saint="saint"
+                                :selected="team.includes(saint.id)"
+                                :interactive="canEditTeam"
+                                @select="toggle"
+                            />
+                        </div>
+
+                        <p v-if="!canEditTeam" class="mz-note">Solo puedes cambiar el equipo al detenerte en un campamento.</p>
+
+                        <div v-if="!roster.length" class="mz-empty">
+                            <strong>Tu santoral está vacío</strong>
+                            <Link href="/" class="mz-btn mz-btn--sm" @click="play('click')">Ir al santuario</Link>
+                        </div>
+
+                        <button type="button" class="mz-rift" :disabled="phase === 'running'" @click="restartRun">
+                            Reiniciar el descenso
+                        </button>
+                    </div>
+        </div>
+
+            <div v-show="journalTab === 'cronicas'" class="mz-journal-body mz-history-body">
+                <p v-if="history.length === 0" class="mz-note">Aún no has descendido. Tus batallas aparecerán aquí.</p>
+                <div v-for="(entry, index) in history" :key="index" class="mz-history-row">
+                    <span class="mz-res" :class="entry.result === 'win' ? 'is-win' : 'is-lose'">
+                        {{ entry.result === 'win' ? 'V' : 'D' }}
+                    </span>
+                    <span>{{ entry.floor }}. {{ entry.name }}</span>
+                    <span class="mz-spacer">{{ entry.at }}</span>
+                </div>
             </div>
         </section>
 
-        <aside class="run-side">
-            <section class="panel run-target">
-                <div class="panel-head">
-                    <h2 class="panel-title">Encuentro</h2>
-                    <span class="panel-note">{{ nodeLabel(current.kind) }} · Sala {{ mapInfo.room }}/{{ mapInfo.length }}</span>
-                </div>
-                <div class="panel-body run-target-body">
-                    <div class="run-target-head">
-                        <span class="run-target-art" :class="`is-${current.kind}`">
-                            <img v-if="current.sprite" :src="current.sprite" :alt="current.name" draggable="false" />
-                            <span v-else class="run-target-glyph" aria-hidden="true">{{ nodeGlyph(current.kind) }}</span>
-                        </span>
-                        <div class="run-target-copy">
-                            <h3>{{ current.name }}</h3>
-                            <p>{{ current.subtitle }}</p>
-                        </div>
-                    </div>
-
-                    <div v-if="isBattle" class="run-target-stats">
-                        <span>Vida <strong>{{ current.hp }}</strong></span>
-                        <span v-if="current.mob_count > 1">Criaturas <strong>{{ current.mob_count }}</strong></span>
-                        <span>Ataque <strong>{{ current.atk }}</strong></span>
-                        <span>Fe <strong>+{{ current.grace }}</strong></span>
-                        <span>XP <strong>+{{ current.xp }}</strong></span>
-                    </div>
-
-                    <div v-else-if="isCamp" class="run-target-stats">
-                        <span>Descanso <strong>{{ current.rest }}%</strong></span>
-                        <span v-if="blessing > 0">Bendición <strong>+{{ blessing }}%</strong></span>
-                    </div>
-
-                    <div v-else-if="current.kind === 'altar'" class="run-target-stats">
-                        <span>Curación <strong>{{ current.heal }}%</strong></span>
-                        <span>Bendición <strong>+{{ current.blessing }}%</strong></span>
-                    </div>
-
-                    <div v-else-if="current.kind === 'trap'" class="run-target-stats">
-                        <span>{{ current.effect === 'grace' ? 'Robo de Fe' : 'Daño' }} <strong>{{ current.power }}%</strong></span>
-                    </div>
-
-                    <button
-                        v-if="isBattle"
-                        type="button"
-                        class="btn btn--gold btn--block"
-                        :disabled="!canFight || submitting"
-                        @click="startFight"
-                    >
-                        {{ phase === 'running' ? 'Batalla en curso…' : (result?.result === 'lose' ? 'Reintentar batalla' : 'Presentar batalla') }}
-                    </button>
-
-                    <div v-else-if="isCamp" class="run-event-actions">
-                        <button type="button" class="btn btn--gold" :disabled="stepping" @click="resolveAction('rest')">
-                            Descansar
-                        </button>
-                        <button type="button" class="btn btn--ghost" :disabled="!canEditTeam" @click="focusRoster">
-                            Cambiar equipo
-                        </button>
-                    </div>
-
-                    <div v-else-if="current.kind === 'altar'" class="run-event-actions">
-                        <button type="button" class="btn btn--gold" :disabled="stepping" @click="resolveAction('heal')">
-                            Curar
-                        </button>
-                        <button type="button" class="btn btn--ghost" :disabled="stepping" @click="resolveAction('bless')">
-                            Bendecir
-                        </button>
-                    </div>
-
-                    <div v-else-if="current.kind === 'trap'" class="run-event-actions">
-                        <button type="button" class="btn btn--gold btn--block" :disabled="stepping" @click="resolveAction('cross')">
-                            Cruzar la trampa
-                        </button>
-                    </div>
-
-                    <p v-if="lastOutcome" class="run-outcome">{{ lastOutcome.text }}</p>
-
-                    <p v-if="team.length === 0" class="run-target-note">
-                        Elige al menos un santo para descender.
-                    </p>
-                    <p v-else-if="isCamp && teamDirty" class="run-target-note">
-                        Tienes cambios sin guardar en el equipo.
-                    </p>
-                </div>
-            </section>
-
-            <section ref="rosterPanel" class="panel run-team">
-                <div class="panel-head">
-                    <h2 class="panel-title">Tu equipo</h2>
-                    <span class="panel-note">{{ team.length }} / 3</span>
-                </div>
-                <div class="panel-body">
-                    <div class="camp-slots">
-                        <div
-                            v-for="(slot, index) in slots"
-                            :key="index"
-                            class="camp-slot"
-                            :class="{ 'is-filled': slot }"
-                            :style="slot ? { '--rarity': slot.rarity_color } : {}"
-                            :role="slot ? undefined : 'button'"
-                            :tabindex="slot ? undefined : 0"
-                            @click="!slot && focusRoster()"
-                            @keydown.enter="!slot && focusRoster()"
-                        >
-                            <template v-if="slot">
-                                <button
-                                    v-if="canEditTeam"
-                                    type="button"
-                                    class="slot-remove"
-                                    :aria-label="`Quitar a ${slot.name}`"
-                                    @click.stop="toggle(slot)"
-                                >
-                                    ✕
-                                </button>
-                                <img :src="slot.art" :alt="slot.name" draggable="false" />
-                                <span class="slot-name">{{ shortName(slot.name) }}</span>
-                                <span class="slot-vitals" :class="vitalClass(slot)">
-                                    <span class="slot-vital-bar">
-                                        <span :style="{ width: `${vitalPercent(slot)}%` }"></span>
-                                    </span>
-                                    <span class="slot-vital-text">{{ vitalFor(slot.id).hp }} / {{ vitalFor(slot.id).max }}</span>
-                                </span>
-                            </template>
-                            <template v-else>
-                                <span class="slot-empty">
-                                    <span class="plus" aria-hidden="true">+</span>
-                                    Añadir
-                                </span>
-                            </template>
-                        </div>
-                    </div>
-
-                    <div class="run-team-foot">
-                        <span class="run-team-power"><strong>{{ localPower }}</strong> poder</span>
-                        <span v-if="blessing > 0" class="run-blessing">+{{ blessing }}% ataque</span>
-                        <button
-                            v-if="canEditTeam"
-                            type="button"
-                            class="btn btn--ghost btn--sm"
-                            :disabled="phase === 'running'"
-                            @click="rosterOpen = !rosterOpen"
-                        >
-                            {{ rosterOpen ? 'Cerrar' : 'Cambiar' }}
-                        </button>
-                        <span v-else class="run-team-lock">Equipo fijado</span>
-                    </div>
-
-                    <button
-                        v-if="canEditTeam && teamDirty"
-                        type="button"
-                        class="btn btn--gold btn--sm btn--block"
-                        :disabled="teamSaving"
-                        @click="saveTeam(false)"
-                    >
-                        {{ teamSaving ? 'Guardando…' : 'Guardar equipo' }}
-                    </button>
-
-                    <div v-if="rosterOpen && canEditTeam" class="camp-roster run-roster">
-                        <SaintCard
-                            v-for="saint in roster"
-                            :key="saint.id"
-                            :saint="saint"
-                            :selected="team.includes(saint.id)"
-                            :interactive="canEditTeam"
-                            @select="toggle"
-                        />
-                    </div>
-
-                    <p v-if="!canEditTeam" class="run-target-note">
-                        Solo puedes cambiar el equipo al detenerte en un campamento.
-                    </p>
-
-                    <div v-if="!roster.length" class="empty run-empty">
-                        <strong>Tu santoral está vacío</strong>
-                        <Link href="/" class="btn btn--gold btn--sm" @click="play('click')">Ir al santuario</Link>
-                    </div>
-
-                    <button type="button" class="run-rift" :disabled="phase === 'running'" @click="restartRun">
-                        Reiniciar el descenso
-                    </button>
-                </div>
-            </section>
-
-            <details v-if="history.length" class="panel run-history">
-                <summary>Crónicas recientes</summary>
-                <div class="run-history-body">
-                    <div v-for="(entry, index) in history.slice(0, 5)" :key="index" class="history-row">
-                        <span class="res" :class="entry.result === 'win' ? 'res--win' : 'res--lose'">
-                            {{ entry.result === 'win' ? 'V' : 'D' }}
-                        </span>
-                        <span>{{ entry.floor }}. {{ entry.name }}</span>
-                        <span class="spacer">{{ entry.at }}</span>
-                    </div>
-                </div>
-            </details>
-        </aside>
     </div>
-
-    <section v-if="battleVisible" class="panel run-battle">
-        <div class="run-battle-head">
-            <h2 class="panel-title">Combate</h2>
-            <span class="run-battle-status">{{ statusText }}</span>
-            <button v-if="phase === 'running'" type="button" class="btn btn--ghost btn--sm" @click="skipAnimation">
-                Saltar
-            </button>
-        </div>
-
-        <div class="arena">
-            <div class="arena-vs" aria-hidden="true">VS</div>
-
-            <div class="arena-field">
-                <div class="arena-side">
-                    <div v-for="unit in allies" :key="unit.id" class="fighter" :class="fighterClass(unit)">
-                        <span
-                            v-if="floatFor(unit.id)"
-                            :key="floatFor(unit.id).key"
-                            class="float-dmg"
-                            :class="{ 'is-heal': floatFor(unit.id).type === 'heal', 'is-shield': floatFor(unit.id).type === 'shield', 'is-crit': floatFor(unit.id).type === 'crit' }"
-                        >
-                            {{ floatFor(unit.id).text }}
-                        </span>
-                        <img :src="unit.sprite" :alt="unit.name" draggable="false" />
-                        <span class="fighter-name">{{ unit.short }}</span>
-                        <span class="fighter-lv">Nv. {{ unit.level }}</span>
-                        <div class="hp-wrap">
-                            <div class="hp-bar" :class="hpClass(unit)">
-                                <span :style="{ width: `${hpPercent(unit)}%` }"></span>
-                                <span v-if="shields[unit.id]" class="shield-bar" :style="{ width: `${shieldPercent(unit)}%` }"></span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="arena-side arena-side--foe" :class="{ 'is-crowded': foes.length > 2 }">
-                    <div
-                        v-for="(unit, index) in foes"
-                        :key="unit.id"
-                        class="fighter fighter--foe"
-                        :class="fighterClass(unit)"
-                    >
-                        <span
-                            v-if="floatFor(unit.id)"
-                            :key="floatFor(unit.id).key"
-                            class="float-dmg"
-                            :class="{ 'is-heal': floatFor(unit.id).type === 'heal', 'is-shield': floatFor(unit.id).type === 'shield', 'is-crit': floatFor(unit.id).type === 'crit' }"
-                        >
-                            {{ floatFor(unit.id).text }}
-                        </span>
-                        <img :src="unit.sprite" :alt="unit.name" draggable="false" />
-                        <span class="fighter-name">{{ unit.short }}</span>
-                        <span class="fighter-lv">{{ isBoss && index === 0 ? 'Jefe' : `Nv. ${unit.level}` }}</span>
-                        <div class="hp-wrap">
-                            <div class="hp-bar" :class="hpClass(unit)">
-                                <span :style="{ width: `${hpPercent(unit)}%` }"></span>
-                                <span v-if="shields[unit.id]" class="shield-bar" :style="{ width: `${shieldPercent(unit)}%` }"></span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div v-if="phase === 'done' && result" class="run-result" :class="{ 'is-lose': result.result !== 'win' }">
-            <div class="run-result-copy">
-                <strong>{{ result.result === 'win' ? '¡Victoria!' : 'Derrota' }}</strong>
-                <span>Piso {{ result.map_index ?? mapInfo.index }} · Sala {{ result.room ?? mapInfo.room }} · {{ result.stage_name }}</span>
-            </div>
-
-            <div class="run-result-rewards">
-                <span>Fe <strong>+{{ result.rewards.grace }}</strong></span>
-                <span>XP <strong>+{{ result.rewards.xp }}</strong></span>
-                <span v-if="result.levels?.length" class="run-levels">
-                    Suben: {{ result.levels.map((level) => level.name).join(', ') }}
-                </span>
-            </div>
-
-            <div class="btn-row">
-                <button v-if="result.result !== 'win'" type="button" class="btn btn--ghost btn--sm" @click="retry">
-                    Reintentar
-                </button>
-                <button v-else type="button" class="btn btn--gold btn--sm" @click="dismissResult">
-                    Continuar
-                </button>
-            </div>
-        </div>
-
-        <details class="run-battle-log">
-            <summary>Crónica del combate</summary>
-            <div ref="logBox" class="battle-log" aria-live="polite">
-                <p v-if="logEntries.length === 0" class="panel-note">La crónica aparecerá al presentar batalla.</p>
-                <div
-                    v-for="entry in logEntries"
-                    :key="entry.key"
-                    class="log-entry"
-                    :class="logClass(entry)"
-                >
-                    <span v-if="entry.turn" class="log-turn">{{ entry.turn }}</span>
-                    <span>{{ entry.text }}</span>
-                </div>
-            </div>
-        </details>
-    </section>
 </template>

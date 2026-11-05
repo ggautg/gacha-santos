@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ArtController;
 use App\Http\Controllers\CollectionController;
+use App\Http\Controllers\DevAccountController;
 use App\Http\Controllers\DungeonController;
 use App\Http\Controllers\GachaController;
 use App\Http\Controllers\SanctuaryController;
@@ -14,6 +15,7 @@ Route::get('/orar', [GachaController::class, 'index'])->name('gacha');
 
 Route::get('/retratos/velado', [ArtController::class, 'mystery'])->name('art.mystery');
 Route::get('/retratos/{saint:slug}', [ArtController::class, 'saint'])->name('art.saint');
+Route::get('/batalla/{saint:slug}', [ArtController::class, 'battle'])->name('art.battle');
 Route::get('/enemigos/{key}', [ArtController::class, 'foe'])->name('art.foe');
 
 Route::post('/gacha', [GachaController::class, 'pull'])->name('gacha.pull');
@@ -27,7 +29,11 @@ Route::post('/equipo', [TeamController::class, 'save'])->name('team.save');
 Route::get('/mazmorras', [DungeonController::class, 'index'])->name('dungeons');
 Route::get('/mazmorras/{dungeon}', [DungeonController::class, 'show'])->name('dungeons.show');
 Route::post('/mazmorras/{dungeon}/batalla', [DungeonController::class, 'fight'])->name('dungeons.fight');
-Route::post('/mazmorras/{dungeon}/ruta', [DungeonController::class, 'chooseRoute'])->name('dungeons.route');
+Route::post('/mazmorras/{dungeon}/mover', [DungeonController::class, 'move'])->name('dungeons.move');
 Route::post('/mazmorras/{dungeon}/paso', [DungeonController::class, 'step'])->name('dungeons.step');
 Route::post('/mazmorras/{dungeon}/equipo', [DungeonController::class, 'team'])->name('dungeons.team');
 Route::post('/mazmorras/{dungeon}/reiniciar', [DungeonController::class, 'restart'])->name('dungeons.restart');
+
+if (app()->environment(['local', 'testing'])) {
+    Route::post('/desarrollo/reiniciar-cuenta', [DevAccountController::class, 'reset'])->name('dev.account.reset');
+}

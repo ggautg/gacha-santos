@@ -76,8 +76,6 @@ class SanctuaryController extends Controller
             'player' => [
                 'name' => $player->name,
                 'grace' => $player->grace,
-                'free_ready' => $player->freePullReady(),
-                'free_in' => $player->secondsUntilFreePull(),
                 'wins' => $player->wins,
                 'losses' => $player->losses,
                 'owned' => $copies->count(),

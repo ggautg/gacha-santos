@@ -11,7 +11,6 @@ return [
     'starting_grace' => 0,
     'pull_cost' => 60,
     'ten_pull_cost' => 540,
-    'free_pull_hours' => 6,
     'max_level' => 20,
     'level_cost_base' => 45,
 
@@ -42,11 +41,11 @@ return [
         5 => 240,
     ],
 
+    // Trío inicial: ofensiva, curación y escudo.
     'starter_slugs' => [
-        'san-juan-evangelista',
-        'san-mateo-apostol',
-        'san-lucas-evangelista',
-        'san-marcos-evangelista',
+        'san-expedito',
+        'san-cayetano',
+        'santa-librada',
     ],
 
     /*

@@ -27,7 +27,6 @@ class GachaTest extends TestCase
         $this->postJson('/gacha', ['count' => 1])
             ->assertOk()
             ->assertJsonPath('ok', true)
-            ->assertJsonPath('free', false)
             ->assertJsonCount(1, 'cards');
 
         $this->assertSame(900 - config('sanctorum.pull_cost'), $player->fresh()->grace);
@@ -76,18 +75,13 @@ class GachaTest extends TestCase
             ->assertJsonPath('errors.gacha.0', 'No tienes suficientes Puntos de Fe. Gana más descendiendo a las mazmorras.');
     }
 
-    public function test_the_free_pull_can_only_be_used_once_per_window(): void
+    public function test_there_is_no_free_daily_pull(): void
     {
-        $player = $this->createPlayer(['grace' => 0]);
+        $this->createPlayer(['grace' => 0]);
 
         $this->postJson('/gacha', ['count' => 1, 'free' => true])
-            ->assertOk()
-            ->assertJsonPath('free', true);
-
-        $this->assertNotNull($player->fresh()->free_pull_at);
-
-        $this->postJson('/gacha', ['count' => 1, 'free' => true])
-            ->assertStatus(422);
+            ->assertStatus(422)
+            ->assertJsonPath('errors.gacha.0', 'No tienes suficientes Puntos de Fe. Gana más descendiendo a las mazmorras.');
     }
 
     public function test_pulling_an_owned_saint_refunds_extra_grace(): void
@@ -116,7 +110,7 @@ class GachaTest extends TestCase
         );
     }
 
-    public function test_a_new_player_receives_the_four_evangelists_and_a_team_of_three(): void
+    public function test_a_new_player_receives_the_three_starter_saints_as_the_team(): void
     {
         $this->get('/')->assertOk();
 
@@ -125,18 +119,16 @@ class GachaTest extends TestCase
             ->where('player_id', $player->id)
             ->get();
 
-        $this->assertCount(4, $copies);
+        $this->assertCount(3, $copies);
         $this->assertSame(0, $player->grace);
         $this->assertEqualsCanonicalizing(
             config('sanctorum.starter_slugs'),
             $copies->pluck('saint.slug')->all(),
         );
 
-        $this->assertCount(3, $player->teamIds());
-        $this->assertSame([
-            'san-juan-evangelista',
-            'san-mateo-apostol',
-            'san-lucas-evangelista',
-        ], Saint::whereIn('id', $player->teamIds())->orderBy('sort')->pluck('slug')->all());
+        $this->assertSame(
+            Saint::whereIn('slug', config('sanctorum.starter_slugs'))->pluck('id')->sort()->values()->all(),
+            collect($player->teamIds())->sort()->values()->all(),
+        );
     }
 }

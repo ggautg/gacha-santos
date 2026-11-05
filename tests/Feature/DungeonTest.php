@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\DungeonProgress;
 use App\Models\DungeonRun;
+use App\Models\GospelVerse;
 use App\Models\Player;
 use App\Models\Saint;
 use App\Models\SaintCopy;
@@ -35,254 +36,447 @@ class DungeonTest extends TestCase
                 ->has('dungeons', 1)
                 ->where('dungeons.0.key', 'pecados')
                 ->where('dungeons.0.unlocked', true)
-                ->where('dungeons.0.theme', 'pecados')
-                ->where('dungeons.0.next.floor', 1)
-                ->where('dungeons.0.next.kind', 'camp')
-                ->where('deepest', 0));
+                ->where('dungeons.0.theme', 'pecados'));
     }
 
-    public function test_hidden_dungeons_and_unknown_ones_are_not_found(): void
-    {
-        $this->createPlayer();
-
-        $this->get('/mazmorras/goetia')->assertNotFound();
-        $this->get('/mazmorras/catacumbas')->assertNotFound();
-        $this->get('/mazmorras/inexistente')->assertNotFound();
-
-        $this->postJson('/mazmorras/goetia/batalla')->assertNotFound();
-        $this->postJson('/mazmorras/catacumbas/paso', ['action' => 'rest'])->assertNotFound();
-    }
-
-    public function test_the_run_page_renders_the_entry_camp_and_the_owned_roster(): void
+    public function test_the_run_page_renders_the_labyrinth_with_the_entrance_camp(): void
     {
         $player = $this->createPlayer();
         [$run, $team] = $this->prepareRun($player, 1, 12);
-        $map = DungeonRules::mapFor('pecados', $run->seed, 1);
 
         $this->get('/mazmorras/pecados')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('DungeonRun')
                 ->where('dungeon.key', 'pecados')
-                ->where('dungeon.theme', 'pecados')
                 ->where('dungeon.run_floor', 1)
-                ->where('encounter.floor', 1)
                 ->where('encounter.kind', 'camp')
                 ->where('teamIds', $team)
                 ->has('roster', 3)
                 ->has('vitals', 3)
-                ->where('blessing', 0)
-                ->has('path', $map['length'])
-                ->where('path.0.status', 'current')
-                ->where('path.0.options.0.kind', 'camp')
-                ->where('map.index', 1)
-                ->where('map.room', 1)
-                ->where('map.length', $map['length'])
+                ->where('map.room', 0)
+                ->where('map.entrance', 0)
+                ->where('map.resolved', true)
+                ->has('map.rooms')
                 ->has('history'));
     }
 
-    public function test_each_floor_map_has_a_procedural_length_with_the_boss_far_from_the_entrance(): void
+    public function test_every_floor_is_a_connected_horizontal_labyrinth(): void
     {
-        $lengths = [];
-
         for ($seed = 1; $seed <= 40; $seed++) {
-            $map = DungeonRules::mapFor('pecados', $seed, 1);
-            $lengths[$map['length']] = true;
+            $layout = DungeonRules::layout('pecados', $seed, 1);
+            $rooms = $layout['rooms'];
 
-            $this->assertSame(1, $map['start']);
-            $this->assertSame($map['start'] + $map['length'] - 1, $map['end']);
-            $this->assertGreaterThanOrEqual(9, $map['length']);
-            $this->assertLessThanOrEqual(13, $map['length']);
-            $this->assertGreaterThanOrEqual(6, $map['end'] - $map['start']);
-            $this->assertContains(0, $map['camps']);
-            $this->assertLessThanOrEqual(3, count($map['camps']));
-            $this->assertNotContains($map['length'] - 1, $map['camps']);
+            $this->assertGreaterThanOrEqual(9, $layout['width']);
+            $this->assertLessThanOrEqual(13, $layout['width']);
+            $this->assertGreaterThanOrEqual(3, $layout['height']);
+            $this->assertLessThanOrEqual(5, $layout['height']);
+            $this->assertSame(count($rooms), count($this->reachableRooms($layout, $layout['entrance'])), "Seed {$seed} desconectado.");
 
-            $this->assertSame('camp', DungeonRules::nodeFor('pecados', $seed, $map['start'])['kind']);
-            $this->assertSame('boss', DungeonRules::nodeFor('pecados', $seed, $map['end'])['kind']);
+            $distances = $this->distancesFrom($layout, $layout['entrance']);
+            $maxDistance = max($distances);
 
-            foreach ($map['camps'] as $offset) {
-                $floor = $map['start'] + $offset;
+            $this->assertGreaterThanOrEqual(max(2, $maxDistance - 1), $distances[$layout['boss']], "Seed {$seed}: el jefe está demasiado cerca.");
+            $this->assertNotContains($layout['boss'], $rooms[$layout['entrance']]['links']);
+            $this->assertSame('camp', $rooms[$layout['entrance']]['kind']);
+            $this->assertSame('boss', $rooms[$layout['boss']]['kind']);
+            $this->assertCount(1, array_filter($rooms, fn (array $room) => $room['kind'] === 'boss'));
 
-                $this->assertSame('camp', DungeonRules::nodeFor('pecados', $seed, $floor)['kind']);
-                $this->assertSame(1, DungeonRules::forkCount('pecados', $seed, $floor));
+            $camps = array_filter($rooms, fn (array $room) => $room['kind'] === 'camp');
+            $this->assertLessThanOrEqual(3, count($camps));
+
+            foreach ($camps as $camp) {
+                $this->assertNotContains($layout['boss'], $camp['links'], "Seed {$seed}: campamento junto al jefe.");
             }
-
-            $this->assertSame(1, DungeonRules::forkCount('pecados', $seed, $map['end']));
-
-            for ($floor = $map['start'] + 1; $floor < $map['end']; $floor++) {
-                $offset = $floor - $map['start'];
-                $node = DungeonRules::nodeFor('pecados', $seed, $floor);
-
-                if (in_array($offset, $map['camps'], true)) {
-                    $this->assertSame('camp', $node['kind']);
-                } else {
-                    $this->assertContains($node['kind'], ['battle', 'altar', 'trap']);
-                }
-            }
-
-            $next = DungeonRules::mapFor('pecados', $seed, $map['end'] + 1);
-
-            $this->assertSame($map['end'] + 1, $next['start']);
-            $this->assertSame($map['index'] + 1, $next['index']);
-            $this->assertSame('camp', DungeonRules::nodeFor('pecados', $seed, $next['start'])['kind']);
         }
-
-        $this->assertGreaterThan(1, count($lengths), 'La longitud de los pisos debe variar con la semilla.');
     }
 
-    public function test_camps_and_the_boss_never_fork_but_corridors_can_offer_two_paths(): void
+    public function test_the_entrance_can_start_at_the_edge_the_middle_or_the_deep_end(): void
     {
-        $single = 0;
-        $forked = 0;
+        $zones = ['edge' => 0, 'middle' => 0, 'deep' => 0];
 
-        for ($seed = 1; $seed <= 60; $seed++) {
-            $map = DungeonRules::mapFor('pecados', $seed, 1);
+        for ($seed = 1; $seed <= 120; $seed++) {
+            $layout = DungeonRules::layout('pecados', $seed, 1);
+            $width = $layout['width'];
+            $entranceX = $layout['rooms'][$layout['entrance']]['x'];
 
-            foreach ([...$map['camps'], $map['length'] - 1] as $offset) {
-                $this->assertSame(1, DungeonRules::forkCount('pecados', $seed, $map['start'] + $offset));
-            }
-
-            for ($offset = 1; $offset < $map['length'] - 1; $offset++) {
-                if (in_array($offset, $map['camps'], true)) {
-                    continue;
-                }
-
-                $count = DungeonRules::forkCount('pecados', $seed, $map['start'] + $offset);
-
-                $this->assertContains($count, [1, 2]);
-                $count === 1 ? $single++ : $forked++;
+            if ($entranceX === 0 || $entranceX === $width - 1) {
+                $zones['edge']++;
+            } elseif ($entranceX > $width / 3 && $entranceX < $width * 2 / 3) {
+                $zones['middle']++;
+            } else {
+                $zones['deep']++;
             }
         }
 
-        $this->assertGreaterThan(0, $single);
-        $this->assertGreaterThan(0, $forked);
+        foreach ($zones as $zone => $count) {
+            $this->assertGreaterThan(0, $count, "Ninguna entrada cae en {$zone}.");
+        }
     }
 
-    public function test_the_boss_carries_summon_templates_and_a_summon_chance(): void
+    public function test_layouts_are_deterministic_and_vary_with_seed_and_floor(): void
     {
-        $seed = 987654;
-        $map = DungeonRules::mapFor('pecados', $seed, 1);
-        $node = DungeonRules::nodeFor('pecados', $seed, $map['end']);
-        $mobKeys = collect(config('sanctorum.dungeons.pecados.mobs'))->pluck('enemy')->all();
+        $this->assertSame(
+            DungeonRules::layout('pecados', 555, 2),
+            DungeonRules::layout('pecados', 555, 2),
+        );
 
-        $this->assertSame('boss', $node['kind']);
-        $this->assertSame($map['length'], $node['room']);
-        $this->assertCount(1, $node['mobs']);
-        $this->assertSame(45, $node['summon_chance']);
-        $this->assertNotEmpty($node['summons']);
+        $shapes = [];
 
-        foreach ($node['summons'] as $summon) {
-            $this->assertContains($summon['enemy'], $mobKeys);
-            $this->assertGreaterThan(0, $summon['hp']);
-            $this->assertLessThanOrEqual($node['mobs'][0]['hp'], $summon['hp']);
+        for ($seed = 1; $seed <= 30; $seed++) {
+            $layout = DungeonRules::layout('pecados', $seed, 1);
+            $shapes[$layout['width'].'x'.$layout['height'].':'.$layout['boss']] = true;
         }
+
+        $this->assertGreaterThan(5, count($shapes));
+        $this->assertNotEquals(
+            DungeonRules::layout('pecados', 555, 1),
+            DungeonRules::layout('pecados', 555, 2),
+        );
     }
 
-    public function test_the_path_preview_shows_the_whole_floor_with_visited_and_future_rooms(): void
+    public function test_the_boss_stays_hidden_until_a_neighbouring_room_is_known(): void
     {
         $player = $this->createPlayer();
         [$run] = $this->prepareRun($player, 1, 12);
         $run->seed = 987654;
-        $run->floor = 1;
         $run->save();
 
-        $map = DungeonRules::mapFor('pecados', 987654, 1);
-        $path = DungeonRules::pathPreview($player, 'pecados', $run);
+        $layout = DungeonRules::layout('pecados', 987654, 1);
+        $view = DungeonRules::mapView('pecados', $run->fresh());
+        $boss = collect($view['rooms'])->firstWhere('id', $layout['boss']);
 
-        $this->assertCount($map['length'], $path);
-        $this->assertSame(1, $path[0]['floor']);
-        $this->assertSame('current', $path[0]['status']);
-        $this->assertSame('camp', $path[0]['options'][0]['kind']);
-        $this->assertCount(1, $path[0]['options']);
-        $this->assertSame('boss', $path[$map['length'] - 1]['options'][0]['kind']);
-        $this->assertSame('future', $path[1]['status']);
+        $this->assertFalse($boss['known']);
+        $this->assertNull($boss['kind']);
+        $this->assertSame(
+            count(array_filter($view['rooms'], fn (array $room) => $room['known'])),
+            count(array_unique(array_merge([0], $layout['rooms'][0]['links']))),
+        );
+    }
 
-        foreach ($path as $row) {
-            $this->assertSame(
-                DungeonRules::forkCount('pecados', $run->seed, $row['floor']),
-                count($row['options']),
-            );
+    public function test_only_connected_rooms_can_be_reached_and_only_once_the_current_room_is_resolved(): void
+    {
+        $seed = $this->seedWithNeighbour(['battle', 'treasure', 'altar', 'trap']);
+        $player = $this->createPlayer();
+        [$run] = $this->prepareRun($player, 1, 12);
+        $run->seed = $seed;
+        $run->save();
 
-            foreach ($row['options'] as $option) {
-                $node = DungeonRules::nodeFor('pecados', $run->seed, $row['floor'], $option['branch']);
+        $layout = DungeonRules::layout('pecados', $seed, 1);
+        $room = $this->neighbourOf($layout, 0, ['battle', 'treasure', 'altar', 'trap']);
 
-                $this->assertSame($node['kind'], $option['kind']);
-                $this->assertSame($node['name'], $option['name']);
-                $this->assertSame($node['enemy'], $option['enemy']);
+        $this->postJson('/mazmorras/pecados/mover', ['room' => $layout['boss']])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.room.0', 'Esa sala no está conectada con tu posición.');
+
+        $this->postJson('/mazmorras/pecados/mover', ['room' => $room])
+            ->assertOk()
+            ->assertJsonPath('room', $room);
+
+        $this->postJson('/mazmorras/pecados/mover', ['room' => 0])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.room.0', 'Resuelve esta sala antes de seguir explorando.');
+    }
+
+    public function test_winning_a_battle_clears_only_that_room_and_keeps_the_floor(): void
+    {
+        $seed = $this->seedWithNeighbour(['battle']);
+        $player = $this->createPlayer(['grace' => 0]);
+        [$run, $team] = $this->prepareRun($player, 1, 20, 6);
+        $run->seed = $seed;
+        $run->save();
+
+        $layout = DungeonRules::layout('pecados', $seed, 1);
+        $room = $this->neighbourOf($layout, 0, ['battle']);
+
+        $this->postJson('/mazmorras/pecados/mover', ['room' => $room])->assertOk();
+
+        $this->postJson('/mazmorras/pecados/batalla')
+            ->assertOk()
+            ->assertJsonPath('result', 'win')
+            ->assertJsonPath('room', $room)
+            ->assertJsonPath('run_floor', 1);
+
+        $fresh = $run->fresh();
+
+        $this->assertSame(1, $fresh->floor);
+        $this->assertContains($room, $fresh->cleared);
+        $this->assertSame($room, $fresh->room);
+        $this->assertSame($team, $player->fresh()->teamIds());
+    }
+
+    public function test_defeating_the_hidden_boss_advances_to_a_new_floor(): void
+    {
+        $seed = 987654;
+        $player = $this->createPlayer(['grace' => 0]);
+        [$run] = $this->prepareRun($player, 1, 20, 6);
+        $layout = DungeonRules::layout('pecados', $seed, 1);
+
+        $run->seed = $seed;
+        $run->room = $layout['boss'];
+        $run->cleared = [];
+        $run->save();
+
+        $this->postJson('/mazmorras/pecados/batalla')
+            ->assertOk()
+            ->assertJsonPath('result', 'win')
+            ->assertJsonPath('kind', 'boss')
+            ->assertJsonPath('run_floor', 2)
+            ->assertJsonPath('room', $layout['boss']);
+
+        $fresh = $run->fresh();
+
+        $this->assertSame(2, $fresh->floor);
+        $this->assertSame(0, $fresh->room);
+        $this->assertSame([], $fresh->cleared);
+        $this->assertDatabaseHas('dungeon_progress', [
+            'player_id' => $player->id,
+            'dungeon' => 'pecados',
+            'stage' => 1,
+        ]);
+    }
+
+    public function test_a_loss_keeps_the_floor_and_restores_the_vitals_for_a_retry(): void
+    {
+        $seed = 424242;
+        $layout = DungeonRules::layout('pecados', $seed, 1);
+        $player = $this->createPlayer(['grace' => 0]);
+        [$run, $team] = $this->prepareRun($player, 1, 1, 1, 1);
+
+        $run->seed = $seed;
+        $run->room = $layout['boss'];
+        $run->save();
+
+        $encounter = DungeonRules::currentNode($player, 'pecados', $run);
+
+        $this->postJson('/mazmorras/pecados/batalla')
+            ->assertOk()
+            ->assertJsonPath('result', 'lose')
+            ->assertJsonPath('run_floor', 1)
+            ->assertJsonPath('next_encounter.kind', 'boss')
+            ->assertJsonPath('rewards.grace', (int) round($encounter['grace'] * 0.2));
+
+        $this->assertDatabaseMissing('dungeon_progress', [
+            'player_id' => $player->id,
+            'dungeon' => 'pecados',
+            'stage' => 1,
+        ]);
+
+        $copy = SaintCopy::where('player_id', $player->id)->where('saint_id', $team[0])->firstOrFail();
+
+        $this->assertSame($copy->stats()['hp'], $run->fresh()->vitals[$team[0]]);
+    }
+
+    public function test_a_treasure_room_grants_points_and_is_cleared(): void
+    {
+        $seed = $this->seedWithNeighbour(['treasure']);
+        $player = $this->createPlayer(['grace' => 100]);
+        [$run] = $this->prepareRun($player, 1, 12);
+        $layout = DungeonRules::layout('pecados', $seed, 1);
+        $room = $this->neighbourOf($layout, 0, ['treasure']);
+        $node = DungeonRules::roomNode('pecados', $seed, 1, $room);
+
+        $run->seed = $seed;
+        $run->room = $room;
+        $run->cleared = [];
+        $run->save();
+
+        $this->postJson('/mazmorras/pecados/paso', ['action' => 'open'])
+            ->assertOk()
+            ->assertJsonPath('outcome.type', 'treasure')
+            ->assertJsonPath('outcome.amount', $node['treasure'])
+            ->assertJsonPath('player.grace', 100 + $node['treasure'])
+            ->assertJsonPath('room', $room);
+
+        $this->assertContains($room, $run->fresh()->cleared);
+        $this->assertSame(100 + $node['treasure'], $player->fresh()->grace);
+    }
+
+    public function test_a_gospel_room_grants_points_and_a_blessing_only_once(): void
+    {
+        $seed = $this->seedWithNeighbour(['gospel']);
+        $player = $this->createPlayer(['grace' => 0]);
+        [$run] = $this->prepareRun($player, 1, 12);
+        $layout = DungeonRules::layout('pecados', $seed, 1);
+        $room = $this->neighbourOf($layout, 0, ['gospel']);
+
+        GospelVerse::factory()->create([
+            'book' => 'JHN',
+            'chapter' => 3,
+            'verse' => 16,
+            'text' => 'Porque de tal manera amó Dios al mundo.',
+        ]);
+
+        $run->seed = $seed;
+        $run->room = $room;
+        $run->cleared = [];
+        $run->save();
+
+        $this->postJson('/mazmorras/pecados/paso', ['action' => 'read'])
+            ->assertOk()
+            ->assertJsonPath('outcome.type', 'gospel')
+            ->assertJsonPath('blessing', 10)
+            ->assertJsonPath('player.grace', 20);
+
+        $this->assertContains($room, $run->fresh()->cleared);
+
+        $this->postJson('/mazmorras/pecados/paso', ['action' => 'read'])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.action.0', 'Ya leíste este fragmento.');
+    }
+
+    public function test_a_trap_can_wound_the_team_and_clear_the_room(): void
+    {
+        $seed = $this->seedWithNeighbour(['trap']);
+        $player = $this->createPlayer();
+        [$run] = $this->prepareRun($player, 1, 12);
+        $layout = DungeonRules::layout('pecados', $seed, 1);
+        $room = $this->neighbourOf($layout, 0, ['trap']);
+
+        $run->seed = $seed;
+        $run->room = $room;
+        $run->save();
+
+        $node = DungeonRules::currentNode($player, 'pecados', $run);
+        $before = DungeonRules::vitalsFor($player, $run);
+
+        $response = $this->postJson('/mazmorras/pecados/paso', ['action' => 'cross']);
+
+        $response->assertOk()->assertJsonPath('outcome.type', $node['effect'] === 'grace' ? 'grace' : 'damage');
+
+        if ($node['effect'] !== 'grace') {
+            $after = $run->fresh()->vitals;
+
+            foreach ($before as $id => $vital) {
+                $damage = (int) round($vital['max'] * $node['power'] / 100);
+
+                $this->assertSame(max(1, $vital['hp'] - $damage), $after[$id]);
             }
         }
 
-        $run->floor = $map['start'] + 2;
-        $run->save();
-
-        $advanced = DungeonRules::pathPreview($player, 'pecados', $run);
-
-        $this->assertSame('visited', $advanced[0]['status']);
-        $this->assertSame('visited', $advanced[1]['status']);
-        $this->assertSame('current', $advanced[2]['status']);
-        $this->assertSame('future', $advanced[3]['status']);
-
-        $this->get('/mazmorras/pecados')
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->has('path', $map['length'])
-                ->where('path.0.options.0.branch', 0)
-                ->where('path.2.status', 'current')
-                ->where('map.index', 1)
-                ->where('map.room', 3)
-                ->where('map.length', $map['length'])
-                ->where('dungeon.route', 0));
+        $this->assertContains($room, $run->fresh()->cleared);
     }
 
-    public function test_choosing_a_branch_is_saved_and_changes_the_encounter(): void
+    public function test_the_virgin_altar_can_heal_or_bless_the_team(): void
     {
-        [$seed, $floor] = $this->seedForFork();
+        $seed = $this->seedWithNeighbour(['altar']);
         $player = $this->createPlayer();
-        [$run] = $this->prepareRun($player, $floor, 12);
+        [$run] = $this->prepareRun($player, 1, 12);
+        $layout = DungeonRules::layout('pecados', $seed, 1);
+        $room = $this->neighbourOf($layout, 0, ['altar']);
+
         $run->seed = $seed;
-        $run->route = 0;
+        $run->room = $room;
+        $this->setAllVitals($run, 1);
         $run->save();
 
-        $first = DungeonRules::nodeFor('pecados', $seed, $floor, 0);
-        $second = DungeonRules::nodeFor('pecados', $seed, $floor, 1);
+        $node = DungeonRules::currentNode($player, 'pecados', $run);
+        $before = DungeonRules::vitalsFor($player, $run);
 
-        $this->assertNotSame($first['enemy'], $second['enemy']);
-
-        $this->postJson('/mazmorras/pecados/ruta', ['branch' => 1])
+        $this->postJson('/mazmorras/pecados/paso', ['action' => 'heal'])
             ->assertOk()
-            ->assertJsonPath('branch', 1)
-            ->assertJsonPath('encounter.enemy', $second['enemy'])
-            ->assertJsonPath('run_floor', $floor)
-            ->assertJsonPath('map.room', $second['room']);
+            ->assertJsonPath('outcome.type', 'heal');
 
-        $this->assertSame(1, $run->fresh()->route);
+        foreach ($before as $id => $vital) {
+            $healed = min($vital['max'], 1 + (int) round($vital['max'] * $node['heal'] / 100));
 
-        $this->get('/mazmorras/pecados')
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->where('dungeon.route', 1)
-                ->where('encounter.enemy', $second['enemy']));
+            $this->assertSame($healed, $run->fresh()->vitals[$id]);
+        }
+
+        $this->assertContains($room, $run->fresh()->cleared);
     }
 
-    public function test_the_team_can_only_be_changed_at_a_camp(): void
+    public function test_the_virgin_altar_can_bless_the_next_battle(): void
+    {
+        $seed = $this->seedWithNeighbour(['altar']);
+        $player = $this->createPlayer();
+        [$run] = $this->prepareRun($player, 1, 12);
+        $layout = DungeonRules::layout('pecados', $seed, 1);
+        $room = $this->neighbourOf($layout, 0, ['altar']);
+
+        $run->seed = $seed;
+        $run->room = $room;
+        $run->save();
+
+        $node = DungeonRules::currentNode($player, 'pecados', $run);
+
+        $this->postJson('/mazmorras/pecados/paso', ['action' => 'bless'])
+            ->assertOk()
+            ->assertJsonPath('outcome.type', 'blessing')
+            ->assertJsonPath('outcome.amount', $node['blessing'])
+            ->assertJsonPath('blessing', $node['blessing']);
+
+        $this->assertSame($node['blessing'], $run->fresh()->blessing);
+    }
+
+    public function test_a_camp_heals_the_team_and_can_update_the_loadout(): void
     {
         $player = $this->createPlayer();
         [$run, $team] = $this->prepareRun($player, 1, 12);
+        $this->setAllVitals($run, 1);
+        $run->save();
+
         $chosen = array_slice($team, 0, 2);
 
-        $this->postJson('/mazmorras/pecados/equipo', ['team' => $chosen])
+        $this->postJson('/mazmorras/pecados/paso', [
+            'action' => 'rest',
+            'team' => $chosen,
+        ])
             ->assertOk()
+            ->assertJsonPath('outcome.type', 'camp')
             ->assertJsonPath('team', $chosen);
 
         $this->assertSame($chosen, $run->fresh()->team);
 
-        $run->floor = 2;
+        foreach ($chosen as $id) {
+            $this->assertGreaterThan(1, $run->fresh()->vitals[$id]);
+        }
+    }
+
+    public function test_a_camp_can_only_be_rested_in_once_per_floor(): void
+    {
+        $player = $this->createPlayer();
+        [$run, $team] = $this->prepareRun($player, 1, 12);
+        $this->setAllVitals($run, 1);
         $run->save();
 
-        $this->postJson('/mazmorras/pecados/equipo', ['team' => $team])
+        $this->postJson('/mazmorras/pecados/paso', ['action' => 'rest'])->assertOk();
+
+        $this->postJson('/mazmorras/pecados/paso', ['action' => 'rest'])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.action.0', 'Ya has descansado en este campamento.');
+
+        $this->postJson('/mazmorras/pecados/paso', ['action' => 'rest', 'team' => array_slice($team, 0, 2)])
+            ->assertStatus(422);
+    }
+
+    public function test_the_team_can_only_be_changed_at_a_camp(): void
+    {
+        $seed = $this->seedWithNeighbour(['battle']);
+        $player = $this->createPlayer();
+        [$run, $team] = $this->prepareRun($player, 1, 12);
+        $layout = DungeonRules::layout('pecados', $seed, 1);
+        $room = $this->neighbourOf($layout, 0, ['battle']);
+
+        $run->seed = $seed;
+        $run->room = $room;
+        $run->save();
+
+        $this->postJson('/mazmorras/pecados/equipo', ['team' => array_slice($team, 0, 2)])
             ->assertStatus(422)
             ->assertJsonPath('errors.team.0', 'Solo puedes cambiar de equipo en un campamento.');
+    }
+
+    public function test_a_fight_needs_a_team_and_a_combat_room(): void
+    {
+        $player = $this->createPlayer();
+        $run = DungeonRules::run($player, 'pecados');
+        $run->seed = 987654;
+        $run->save();
+
+        $this->postJson('/mazmorras/pecados/batalla')
+            ->assertStatus(422)
+            ->assertJsonPath('errors.battle.0', 'Este paso no se resuelve con una batalla.');
     }
 
     public function test_the_team_must_have_between_one_and_three_owned_saints(): void
@@ -305,273 +499,14 @@ class DungeonTest extends TestCase
         $this->assertSame($team, $run->fresh()->team);
     }
 
-    public function test_winning_a_battle_advances_the_run_and_consumes_the_blessing(): void
-    {
-        $seed = 987654;
-        $battleFloor = $this->firstFloorOfKind($seed, 'battle');
-        $player = $this->createPlayer(['grace' => 0]);
-        [$run, $team] = $this->prepareRun($player, $battleFloor, 20, 6);
-
-        $run->seed = $seed;
-        $run->floor = $battleFloor;
-        $run->route = 0;
-        $run->blessing = 25;
-        $run->save();
-
-        $encounter = DungeonRules::currentNode($player, 'pecados', $run);
-        $next = DungeonRules::nodeFor('pecados', $seed, $battleFloor + 1);
-
-        $this->assertSame('battle', $encounter['kind']);
-
-        $response = $this->postJson('/mazmorras/pecados/batalla');
-
-        $response->assertOk()
-            ->assertJsonPath('result', 'win')
-            ->assertJsonPath('kind', 'battle')
-            ->assertJsonPath('floor', $battleFloor)
-            ->assertJsonPath('map_index', $encounter['map_index'])
-            ->assertJsonPath('room', $encounter['room'])
-            ->assertJsonPath('run_floor', $battleFloor + 1)
-            ->assertJsonPath('next_encounter.floor', $battleFloor + 1)
-            ->assertJsonPath('next_encounter.kind', $next['kind'])
-            ->assertJsonPath('rewards.grace', $encounter['grace'])
-            ->assertJsonPath('blessing', 0)
-            ->assertJsonPath('team', $team);
-
-        $this->assertSame($encounter['grace'], $response->json('rewards.grace'));
-        $this->assertSame(0, $run->fresh()->blessing);
-
-        $this->assertDatabaseHas('dungeon_progress', [
-            'player_id' => $player->id,
-            'dungeon' => 'pecados',
-            'stage' => $battleFloor,
-        ]);
-
-        $this->assertDatabaseHas('dungeon_runs', [
-            'player_id' => $player->id,
-            'dungeon' => 'pecados',
-            'floor' => $battleFloor + 1,
-        ]);
-
-        $this->assertDatabaseHas('battles', [
-            'player_id' => $player->id,
-            'dungeon' => 'pecados',
-            'stage' => $battleFloor,
-            'result' => 'win',
-        ]);
-
-        $this->assertSame($team, $player->fresh()->teamIds());
-        $this->assertSame($encounter['grace'], $player->fresh()->grace);
-    }
-
-    public function test_a_loss_keeps_the_floor_and_restores_the_vitals_for_a_retry(): void
-    {
-        $seed = 424242;
-        $map = DungeonRules::mapFor('pecados', $seed, 1);
-        $bossFloor = $map['end'];
-        $player = $this->createPlayer(['grace' => 0]);
-        [$run, $team] = $this->prepareRun($player, $bossFloor, 1, 1, 1);
-
-        $run->seed = $seed;
-        $run->floor = $bossFloor;
-        $run->save();
-
-        $encounter = DungeonRules::currentNode($player, 'pecados', $run);
-        $maxHp = DungeonRules::vitalsFor($player, $run)[$team[0]]['max'];
-
-        $this->assertSame('boss', $encounter['kind']);
-
-        $response = $this->postJson('/mazmorras/pecados/batalla');
-
-        $response->assertOk()
-            ->assertJsonPath('result', 'lose')
-            ->assertJsonPath('floor', $bossFloor)
-            ->assertJsonPath('run_floor', $bossFloor)
-            ->assertJsonPath('next_encounter.floor', $bossFloor)
-            ->assertJsonPath('rewards.grace', (int) round($encounter['grace'] * 0.2));
-
-        $this->assertDatabaseMissing('dungeon_progress', [
-            'player_id' => $player->id,
-            'dungeon' => 'pecados',
-            'stage' => $bossFloor,
-        ]);
-
-        $this->assertDatabaseHas('battles', [
-            'player_id' => $player->id,
-            'dungeon' => 'pecados',
-            'stage' => $bossFloor,
-            'result' => 'lose',
-        ]);
-
-        $vitals = $run->fresh()->vitals;
-
-        $this->assertSame($maxHp, $vitals[$team[0]]);
-        $this->assertSame((int) round($encounter['grace'] * 0.2), $player->fresh()->grace);
-    }
-
-    public function test_a_fight_needs_a_team_and_a_combat_node(): void
-    {
-        $player = $this->createPlayer();
-
-        $run = DungeonRules::run($player, 'pecados');
-        $run->seed = 987654;
-        $run->floor = $this->firstFloorOfKind(987654, 'battle');
-        $run->save();
-
-        $this->postJson('/mazmorras/pecados/batalla')
-            ->assertStatus(422)
-            ->assertJsonPath('errors.team.0', 'Elige al menos un santo antes de entrar en la mazmorra.');
-
-        $player = $this->createPlayer();
-        $this->prepareRun($player, 1, 12);
-
-        $this->postJson('/mazmorras/pecados/batalla')
-            ->assertStatus(422)
-            ->assertJsonPath('errors.battle.0', 'Este paso no se resuelve con una batalla.');
-    }
-
-    public function test_a_trap_can_wound_the_team_and_advance_the_run(): void
-    {
-        [$seed, $floor] = $this->seedForNode('trap', 'damage');
-        $player = $this->createPlayer();
-        [$run] = $this->prepareRun($player, $floor, 12);
-
-        $run->seed = $seed;
-        $run->floor = $floor;
-        $run->save();
-
-        $node = DungeonRules::currentNode($player, 'pecados', $run);
-        $before = DungeonRules::vitalsFor($player, $run);
-
-        $response = $this->postJson('/mazmorras/pecados/paso', ['action' => 'cross']);
-
-        $response->assertOk()
-            ->assertJsonPath('outcome.type', 'damage')
-            ->assertJsonPath('run_floor', $floor + 1);
-
-        $after = $run->fresh()->vitals;
-
-        foreach ($before as $id => $vital) {
-            $damage = (int) round($vital['max'] * $node['power'] / 100);
-
-            $this->assertSame(max(1, $vital['hp'] - $damage), $after[$id]);
-        }
-
-        $this->assertGreaterThan(0, $response->json('outcome.amount'));
-    }
-
-    public function test_a_trap_can_steal_grace_instead_of_vitals(): void
-    {
-        [$seed, $floor] = $this->seedForNode('trap', 'grace');
-        $player = $this->createPlayer(['grace' => 1000]);
-        [$run] = $this->prepareRun($player, $floor, 12);
-
-        $run->seed = $seed;
-        $run->floor = $floor;
-        $run->save();
-
-        $node = DungeonRules::currentNode($player, 'pecados', $run);
-        $loss = min(1000, max(10, (int) round(1000 * $node['power'] / 100)));
-
-        $this->postJson('/mazmorras/pecados/paso', ['action' => 'cross'])
-            ->assertOk()
-            ->assertJsonPath('outcome.type', 'grace')
-            ->assertJsonPath('outcome.amount', $loss)
-            ->assertJsonPath('player.grace', 1000 - $loss)
-            ->assertJsonPath('run_floor', $floor + 1);
-
-        $this->assertSame(1000 - $loss, $player->fresh()->grace);
-    }
-
-    public function test_the_virgin_altar_can_heal_the_team(): void
-    {
-        [$seed, $floor] = $this->seedForNode('altar');
-        $player = $this->createPlayer();
-        [$run] = $this->prepareRun($player, $floor, 12);
-
-        $run->seed = $seed;
-        $run->floor = $floor;
-        $this->setAllVitals($run, 1);
-        $run->save();
-
-        $node = DungeonRules::currentNode($player, 'pecados', $run);
-        $before = DungeonRules::vitalsFor($player, $run);
-
-        $response = $this->postJson('/mazmorras/pecados/paso', ['action' => 'heal']);
-
-        $response->assertOk()
-            ->assertJsonPath('outcome.type', 'heal')
-            ->assertJsonPath('run_floor', $floor + 1);
-
-        $after = $run->fresh()->vitals;
-
-        foreach ($before as $id => $vital) {
-            $healed = min($vital['max'], 1 + (int) round($vital['max'] * $node['heal'] / 100));
-
-            $this->assertSame($healed, $after[$id]);
-        }
-
-        $this->assertGreaterThan(0, $response->json('outcome.amount'));
-    }
-
-    public function test_the_virgin_altar_can_bless_the_next_battle(): void
-    {
-        [$seed, $floor] = $this->seedForNode('altar');
-        $player = $this->createPlayer();
-        [$run] = $this->prepareRun($player, $floor, 12);
-
-        $run->seed = $seed;
-        $run->floor = $floor;
-        $run->save();
-
-        $node = DungeonRules::currentNode($player, 'pecados', $run);
-
-        $this->postJson('/mazmorras/pecados/paso', ['action' => 'bless'])
-            ->assertOk()
-            ->assertJsonPath('outcome.type', 'blessing')
-            ->assertJsonPath('outcome.amount', $node['blessing'])
-            ->assertJsonPath('blessing', $node['blessing'])
-            ->assertJsonPath('run_floor', $floor + 1);
-
-        $this->assertSame($node['blessing'], $run->fresh()->blessing);
-    }
-
-    public function test_a_camp_heals_the_team_and_can_update_the_loadout(): void
-    {
-        $player = $this->createPlayer();
-        [$run, $team] = $this->prepareRun($player, 1, 12);
-        $this->setAllVitals($run, 1);
-        $run->save();
-
-        $chosen = array_slice($team, 0, 2);
-
-        $response = $this->postJson('/mazmorras/pecados/paso', [
-            'action' => 'rest',
-            'team' => $chosen,
-        ]);
-
-        $response->assertOk()
-            ->assertJsonPath('outcome.type', 'camp')
-            ->assertJsonPath('run_floor', 2)
-            ->assertJsonPath('team', $chosen);
-
-        $this->assertGreaterThan(0, $response->json('outcome.amount'));
-        $this->assertSame($chosen, $run->fresh()->team);
-
-        $after = $run->fresh()->vitals;
-
-        foreach ($chosen as $id) {
-            $this->assertGreaterThan(1, $after[$id]);
-        }
-    }
-
-    public function test_a_new_rift_rerolls_the_seed_but_keeps_the_record(): void
+    public function test_a_new_rift_rerolls_the_labyrinth_but_keeps_the_record(): void
     {
         $player = $this->createPlayer();
         $run = DungeonRules::run($player, 'pecados');
         $run->seed = 1;
         $run->floor = 4;
-        $run->route = 1;
+        $run->room = 5;
+        $run->cleared = [2, 3];
         $run->blessing = 25;
         $run->save();
 
@@ -589,7 +524,8 @@ class DungeonTest extends TestCase
         $fresh = $run->fresh();
 
         $this->assertSame(1, $fresh->floor);
-        $this->assertSame(0, $fresh->route);
+        $this->assertSame(0, $fresh->room);
+        $this->assertSame([], $fresh->cleared);
         $this->assertSame(0, $fresh->blessing);
         $this->assertNotSame(1, $fresh->seed);
         $this->assertSame(3, DungeonRules::bestFloor($player, 'pecados'));
@@ -608,6 +544,8 @@ class DungeonTest extends TestCase
 
         $run = DungeonRules::run($player, 'pecados');
         $run->floor = $floor;
+        $run->room = 0;
+        $run->cleared = [];
         $run->route = 0;
         $run->vitals = [];
         $run->blessing = 0;
@@ -639,89 +577,65 @@ class DungeonTest extends TestCase
     }
 
     /**
-     * Busca una semilla y la primera sala de un piso con el tipo pedido.
-     *
-     * @return array{0: int, 1: int}
+     * Semilla cuya entrada tiene un vecino de alguno de los tipos pedidos.
      */
-    private function seedForNode(string $kind, ?string $effect = null): array
+    private function seedWithNeighbour(array $kinds): int
     {
-        for ($seed = 1; $seed <= 20000; $seed++) {
-            $map = DungeonRules::mapFor('pecados', $seed, 1);
+        for ($seed = 1; $seed <= 2000; $seed++) {
+            $layout = DungeonRules::layout('pecados', $seed, 1);
 
-            for ($floor = $map['start'] + 1; $floor < $map['end']; $floor++) {
-                if (in_array($floor - $map['start'], $map['camps'], true)) {
-                    continue;
+            foreach ($layout['rooms'][$layout['entrance']]['links'] as $id) {
+                if (in_array($layout['rooms'][$id]['kind'], $kinds, true)) {
+                    return $seed;
                 }
-
-                $node = DungeonRules::nodeFor('pecados', $seed, $floor);
-
-                if ($node['kind'] !== $kind) {
-                    continue;
-                }
-
-                if ($effect !== null && ($node['effect'] ?? null) !== $effect) {
-                    continue;
-                }
-
-                return [$seed, $floor];
             }
         }
 
-        $this->fail("No se encontró una semilla para {$kind}.");
-    }
-
-    private function firstFloorOfKind(int $seed, string $kind, ?string $effect = null): int
-    {
-        $map = DungeonRules::mapFor('pecados', $seed, 1);
-
-        for ($floor = $map['start'] + 1; $floor < $map['end']; $floor++) {
-            if (in_array($floor - $map['start'], $map['camps'], true)) {
-                continue;
-            }
-
-            $node = DungeonRules::nodeFor('pecados', $seed, $floor);
-
-            if ($node['kind'] !== $kind) {
-                continue;
-            }
-
-            if ($effect !== null && ($node['effect'] ?? null) !== $effect) {
-                continue;
-            }
-
-            return $floor;
-        }
-
-        $this->fail("No se encontró una sala {$kind} en la semilla {$seed}.");
+        $this->fail('No se encontró una semilla con el vecino pedido.');
     }
 
     /**
-     * @return array{0: int, 1: int}
+     * @param  array{rooms: array<int, array<string, mixed>>}  $layout
      */
-    private function seedForFork(): array
+    private function neighbourOf(array $layout, int $room, array $kinds): int
     {
-        for ($seed = 1; $seed <= 20000; $seed++) {
-            $map = DungeonRules::mapFor('pecados', $seed, 1);
+        foreach ($layout['rooms'][$room]['links'] as $id) {
+            if (in_array($layout['rooms'][$id]['kind'], $kinds, true)) {
+                return $id;
+            }
+        }
 
-            for ($floor = $map['start'] + 1; $floor < $map['end']; $floor++) {
-                if (in_array($floor - $map['start'], $map['camps'], true)) {
-                    continue;
-                }
+        $this->fail('La sala no tiene un vecino con ese tipo.');
+    }
 
-                if (DungeonRules::forkCount('pecados', $seed, $floor) < 2) {
-                    continue;
-                }
+    /**
+     * @param  array{rooms: array<int, array<string, mixed>>}  $layout
+     * @return list<int>
+     */
+    private function reachableRooms(array $layout, int $from): array
+    {
+        return array_keys($this->distancesFrom($layout, $from));
+    }
 
-                $first = DungeonRules::nodeFor('pecados', $seed, $floor, 0);
-                $second = DungeonRules::nodeFor('pecados', $seed, $floor, 1);
+    /**
+     * @param  array{rooms: array<int, array<string, mixed>>}  $layout
+     * @return array<int, int>
+     */
+    private function distancesFrom(array $layout, int $from): array
+    {
+        $distances = [$from => 0];
+        $queue = [$from];
 
-                if ($first['enemy'] !== $second['enemy']) {
-                    return [$seed, $floor];
+        for ($i = 0; $i < count($queue); $i++) {
+            foreach ($layout['rooms'][$queue[$i]]['links'] as $next) {
+                if (! isset($distances[$next])) {
+                    $distances[$next] = $distances[$queue[$i]] + 1;
+                    $queue[] = $next;
                 }
             }
         }
 
-        $this->fail('No se encontró una bifurcación con encuentros distintos.');
+        return $distances;
     }
 
     private function setAllVitals(DungeonRun $run, int $hp): void

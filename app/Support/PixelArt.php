@@ -15,6 +15,13 @@ final class PixelArt
 
     public const H = 28;
 
+    public const BATTLE_H = 40;
+
+    /**
+     * Alto del lienzo que se está dibujando: retrato o sprite de batalla.
+     */
+    private static int $rows = self::H;
+
     private const SAINT_DEFAULTS = [
         'bg1' => '#171334',
         'bg2' => '#231d4d',
@@ -187,6 +194,43 @@ final class PixelArt
         return self::render($g, $class, $label);
     }
 
+    /**
+     * Sprite de cuerpo entero a vista lateral para la pelea: la misma figura del
+     * santo con piernas y pies, en un lienzo más alto.
+     */
+    public static function battle(array $art, string $class = '', string $label = ''): string
+    {
+        self::$rows = self::BATTLE_H;
+
+        try {
+            $a = self::saintDefaults($art);
+            $g = self::blank($a['bg1']);
+
+            self::background($g, $a);
+            self::body($g, $a);
+            self::head($g, $a);
+            self::hair($g, $a);
+            self::beard($g, $a);
+            self::headgear($g, $a);
+            self::accessory($g, $a);
+            self::feet($g, $a);
+
+            return self::render($g, $class, $label);
+        } finally {
+            self::$rows = self::H;
+        }
+    }
+
+    private static function feet(array &$g, array $a): void
+    {
+        $shoe = self::shade($a['mantle'], -0.45);
+
+        self::rect($g, 7, self::BATTLE_H - 3, 10, self::BATTLE_H - 1, $shoe);
+        self::rect($g, 13, self::BATTLE_H - 3, 16, self::BATTLE_H - 1, $shoe);
+        self::rect($g, 6, self::BATTLE_H - 2, 11, self::BATTLE_H - 1, self::shade($shoe, 0.15));
+        self::rect($g, 12, self::BATTLE_H - 2, 17, self::BATTLE_H - 1, self::shade($shoe, 0.15));
+    }
+
     public static function hasFoe(string $key): bool
     {
         return array_key_exists($key, self::FOES);
@@ -230,7 +274,7 @@ final class PixelArt
         $bg2 = '#141026';
         $g = self::blank($bg1);
 
-        for ($y = 0; $y < self::H; $y++) {
+        for ($y = 0; $y < self::$rows; $y++) {
             for ($x = 0; $x < self::W; $x++) {
                 if ((($x * 3) + ($y * 5)) % 9 === 0) {
                     $g[$y][$x] = $bg2;
@@ -239,7 +283,7 @@ final class PixelArt
         }
 
         // Ventanal apenas insinuado
-        for ($y = 2; $y < self::H; $y++) {
+        for ($y = 2; $y < self::$rows; $y++) {
             $half = $y < 8 ? 2.0 + ($y - 2) * 1.15 : 7.4;
             $from = (int) ceil(11.5 - $half);
             $to = (int) floor(11.5 + $half);
@@ -251,7 +295,7 @@ final class PixelArt
         }
 
         foreach ([8, 15] as $lead) {
-            for ($y = 9; $y < self::H; $y++) {
+            for ($y = 9; $y < self::$rows; $y++) {
                 if (($g[$y][$lead] ?? null) !== null) {
                     $g[$y][$lead] = '#120e24';
                 }
@@ -262,7 +306,7 @@ final class PixelArt
         }
 
         // Suelo
-        for ($y = 26; $y < self::H; $y++) {
+        for ($y = 26; $y < self::$rows; $y++) {
             for ($x = 0; $x < self::W; $x++) {
                 $g[$y][$x] = '#0a0714';
             }
@@ -323,7 +367,7 @@ final class PixelArt
         $bg2 = $a['bg2'];
         $bg3 = self::shade($bg1, -0.14);
 
-        for ($y = 0; $y < self::H; $y++) {
+        for ($y = 0; $y < self::$rows; $y++) {
             for ($x = 0; $x < self::W; $x++) {
                 $g[$y][$x] = $bg1;
                 if ((($x * 3) + ($y * 5)) % 9 === 0) {
@@ -333,7 +377,7 @@ final class PixelArt
         }
 
         // Ventanal gótico detrás del santo
-        for ($y = 2; $y < self::H; $y++) {
+        for ($y = 2; $y < self::$rows; $y++) {
             $half = $y < 8 ? 2.0 + ($y - 2) * 1.15 : 7.4;
             $from = (int) ceil(11.5 - $half);
             $to = (int) floor(11.5 + $half);
@@ -350,7 +394,7 @@ final class PixelArt
 
         // Junquillos del ventanal
         foreach ([8, 15] as $lead) {
-            for ($y = 9; $y < self::H; $y++) {
+            for ($y = 9; $y < self::$rows; $y++) {
                 if (($g[$y][$lead] ?? null) !== null) {
                     $g[$y][$lead] = $bg3;
                 }
@@ -361,7 +405,7 @@ final class PixelArt
         }
 
         // Suelo
-        for ($y = 26; $y < self::H; $y++) {
+        for ($y = 26; $y < self::$rows; $y++) {
             for ($x = 0; $x < self::W; $x++) {
                 if ($g[$y][$x] !== $bg1) {
                     $g[$y][$x] = self::shade($bg1, -0.18);
@@ -375,7 +419,7 @@ final class PixelArt
         $halo = $a['halo'];
         $dark = self::shade($halo, -0.32);
 
-        for ($y = 0; $y < self::H; $y++) {
+        for ($y = 0; $y < self::$rows; $y++) {
             for ($x = 0; $x < self::W; $x++) {
                 $dx = ($x + 0.5 - 11.5) / 7.4;
                 $dy = ($y + 0.5 - 9.0) / 6.9;
@@ -414,7 +458,7 @@ final class PixelArt
             21 => 7,
         ];
 
-        for ($y = 16; $y < self::H; $y++) {
+        for ($y = 16; $y < self::$rows; $y++) {
             $hw = $shapes[$y] ?? 7;
             $from = 11 - $hw;
             $to = 12 + $hw;
@@ -852,7 +896,7 @@ final class PixelArt
 
     private static function foeBackground(array &$g, array $f): void
     {
-        for ($y = 0; $y < self::H; $y++) {
+        for ($y = 0; $y < self::$rows; $y++) {
             for ($x = 0; $x < self::W; $x++) {
                 $g[$y][$x] = $f['bg1'];
                 if ((($x * 5) + ($y * 3)) % 11 === 0) {
@@ -870,7 +914,7 @@ final class PixelArt
     private static function foeAura(array &$g, array $f): void
     {
         $aura = $f['aura'];
-        for ($y = 0; $y < self::H; $y++) {
+        for ($y = 0; $y < self::$rows; $y++) {
             for ($x = 0; $x < self::W; $x++) {
                 $dx = ($x + 0.5 - 11.5) / 9.4;
                 $dy = ($y + 0.5 - 15.0) / 11.0;
@@ -1056,12 +1100,12 @@ final class PixelArt
     {
         $row = array_fill(0, self::W, $color);
 
-        return array_fill(0, self::H, $row);
+        return array_fill(0, self::$rows, $row);
     }
 
     private static function set(array &$g, int $x, int $y, string $color): void
     {
-        if ($x >= 0 && $x < self::W && $y >= 0 && $y < self::H) {
+        if ($x >= 0 && $x < self::W && $y >= 0 && $y < self::$rows) {
             $g[$y][$x] = $color;
         }
     }
@@ -1099,7 +1143,7 @@ final class PixelArt
 
     private static function merge(array &$g, array $tmp, bool $mirror): void
     {
-        for ($y = 0; $y < self::H; $y++) {
+        for ($y = 0; $y < self::$rows; $y++) {
             for ($x = 0; $x < self::W; $x++) {
                 $color = $tmp[$y][$x];
                 if ($color === null) {
@@ -1131,7 +1175,7 @@ final class PixelArt
     {
         $runs = [];
 
-        for ($y = 0; $y < self::H; $y++) {
+        for ($y = 0; $y < self::$rows; $y++) {
             $x = 0;
             while ($x < self::W) {
                 $color = $grid[$y][$x];
@@ -1164,7 +1208,7 @@ final class PixelArt
         $safeLabel = htmlspecialchars($label, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
         $classAttr = $safeClass !== '' ? ' class="pixel-art '.$safeClass.'"' : '';
 
-        return '<svg'.$classAttr.' viewBox="0 0 '.self::W.' '.self::H.'" width="'.self::W.'" height="'.self::H.'"'
+        return '<svg'.$classAttr.' viewBox="0 0 '.self::W.' '.self::$rows.'" width="'.self::W.'" height="'.self::$rows.'"'
             .' preserveAspectRatio="xMidYMid meet"'
             .' xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges" role="img"'
             .($safeLabel !== '' ? ' aria-label="'.$safeLabel.'"' : ' aria-hidden="true"')

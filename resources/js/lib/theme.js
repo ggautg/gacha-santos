@@ -1,6 +1,7 @@
 import { ref } from 'vue';
 
-const THEME_KEY = 'sanctorum.theme';
+// v2: Gloria pasa a ser el tema por defecto y descarta elecciones antiguas.
+const THEME_KEY = 'sanctorum.theme.v2';
 // v2: la tipografía legible pasa a ser la opción por defecto.
 const FONT_KEY = 'sanctorum.font.v2';
 
@@ -43,7 +44,9 @@ export const FONTS = [
     },
 ];
 
-export const currentTheme = ref('clasico');
+const DEFAULT_THEME = 'gloria';
+
+export const currentTheme = ref(DEFAULT_THEME);
 export const currentFont = ref('clasica');
 
 function readStored(key) {
@@ -67,7 +70,7 @@ function storeValue(key, value) {
 }
 
 function findTheme(key) {
-    return THEMES.find((theme) => theme.key === key) ?? THEMES[0];
+    return THEMES.find((theme) => theme.key === key) ?? THEMES.find((theme) => theme.key === DEFAULT_THEME);
 }
 
 function findFont(key) {
@@ -97,15 +100,10 @@ export function applyTheme(key, { persist = true, font } = {}) {
     const theme = findTheme(key);
 
     currentTheme.value = theme.key;
-
-    if (theme.key === 'clasico') {
-        delete document.documentElement.dataset.theme;
-    } else {
-        document.documentElement.dataset.theme = theme.key;
-    }
+    document.documentElement.dataset.theme = theme.key;
 
     if (persist) {
-        storeValue(THEME_KEY, theme.key === 'clasico' ? null : theme.key);
+        storeValue(THEME_KEY, theme.key === DEFAULT_THEME ? null : theme.key);
     }
 
     applyFont(font ?? theme.font, { persist });
@@ -113,7 +111,7 @@ export function applyTheme(key, { persist = true, font } = {}) {
 }
 
 export function resetTheme() {
-    applyTheme('clasico');
+    applyTheme(DEFAULT_THEME);
     applyFont('clasica');
 }
 
@@ -124,7 +122,7 @@ export function initTheme() {
     const storedTheme = readStored(THEME_KEY);
     const storedFont = readStored(FONT_KEY);
 
-    applyTheme(storedTheme ?? 'clasico', { persist: false });
+    applyTheme(storedTheme ?? DEFAULT_THEME, { persist: false });
 
     if (storedFont) {
         applyFont(storedFont, { persist: false });

@@ -15,6 +15,11 @@ final class CardPresenter
         return route('art.saint', ['saint' => $saint->slug], false);
     }
 
+    public static function battleUrl(Saint $saint): string
+    {
+        return route('art.battle', ['saint' => $saint->slug], false);
+    }
+
     public static function foeUrl(string $key): string
     {
         return route('art.foe', ['key' => $key], false);

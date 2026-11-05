@@ -10,12 +10,11 @@ class Player extends Model
 {
     protected $fillable = [
         'token', 'name', 'grace', 'pity', 'ten_pity', 'depth',
-        'wins', 'losses', 'free_pull_at', 'team',
+        'wins', 'losses', 'team',
     ];
 
     protected $casts = [
         'team' => 'array',
-        'free_pull_at' => 'datetime',
         'grace' => 'integer',
         'pity' => 'integer',
         'ten_pity' => 'integer',
@@ -54,20 +53,6 @@ class Player extends Model
     public function battles(): HasMany
     {
         return $this->hasMany(Battle::class);
-    }
-
-    public function freePullReady(): bool
-    {
-        return $this->free_pull_at === null || $this->free_pull_at->isPast();
-    }
-
-    public function secondsUntilFreePull(): int
-    {
-        if ($this->freePullReady()) {
-            return 0;
-        }
-
-        return max(0, now()->diffInSeconds($this->free_pull_at));
     }
 
     public function teamIds(): array

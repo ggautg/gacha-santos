@@ -18,6 +18,11 @@ class ArtController extends Controller
         );
     }
 
+    public function battle(Saint $saint): Response
+    {
+        return $this->svg(PixelArt::battle($saint->art, '', $saint->name));
+    }
+
     public function foe(string $key): Response
     {
         abort_unless(PixelArt::hasFoe($key), 404);

@@ -114,12 +114,10 @@ class DungeonController extends Controller
                 'accent2' => $config['accent2'] ?? '#f2c94c',
                 'best_floor' => $state['best_floor'],
                 'run_floor' => $state['run_floor'],
-                'route' => $state['route'],
                 'cleared' => $state['cleared'],
                 'unlock_text' => DungeonRules::unlockText($dungeon),
             ],
             'encounter' => $state['encounter'],
-            'path' => $state['path'],
             'map' => $state['map'],
             'roster' => $copies->map(fn (SaintCopy $copy) => CardPresenter::saint($copy->saint, $copy))->values(),
             'teamIds' => $state['team'],
@@ -159,7 +157,7 @@ class DungeonController extends Controller
         return response()->json($result);
     }
 
-    public function chooseRoute(Request $request, string $dungeon)
+    public function move(Request $request, string $dungeon)
     {
         abort_unless(DungeonRules::isVisible($dungeon), 404);
 
@@ -173,16 +171,23 @@ class DungeonController extends Controller
         }
 
         $data = $request->validate([
-            'branch' => ['required', 'integer', 'min:0', 'max:1'],
+            'room' => ['required', 'integer', 'min:0'],
         ]);
 
-        $run = DungeonRules::chooseRoute($player, $dungeon, (int) $data['branch']);
+        try {
+            $run = DungeonRules::moveTo($player, $dungeon, (int) $data['room']);
+        } catch (ValidationException $exception) {
+            return response()->json([
+                'message' => $exception->getMessage(),
+                'errors' => $exception->errors(),
+            ], 422);
+        }
+
         $state = DungeonRules::state($player, $dungeon, $run);
 
         return response()->json([
-            'branch' => $state['route'],
+            'room' => (int) $run->room,
             'encounter' => $state['encounter'],
-            'path' => $state['path'],
             'map' => $state['map'],
             'run_floor' => $state['run_floor'],
             'best_floor' => $state['best_floor'],
@@ -206,7 +211,7 @@ class DungeonController extends Controller
         }
 
         $data = $request->validate([
-            'action' => ['required', 'string', 'in:rest,heal,bless,cross'],
+            'action' => ['required', 'string', 'in:rest,heal,bless,cross,open,read'],
             'team' => ['nullable', 'array'],
             'team.*' => ['integer'],
         ]);

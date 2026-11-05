@@ -99,7 +99,7 @@ class BattleService
                 'skillType' => $saint->skill_type,
                 'skillName' => $saint->skill_name,
                 'skillPower' => $saint->skill_power,
-                'sprite' => CardPresenter::artUrl($saint),
+                'sprite' => CardPresenter::battleUrl($saint),
                 'rarity' => $saint->rarity,
                 'summoner' => false,
             ];
@@ -261,8 +261,10 @@ class BattleService
             $run->blessing = 0;
             $run->save();
 
-            if ($win) {
+            if ($win && $encounter['kind'] === 'boss') {
                 $run = DungeonRules::markCleared($player, $dungeonKey, $floor, $run);
+            } elseif ($win) {
+                $run = DungeonRules::markRoomCleared($run, (int) $encounter['room']);
             }
 
             $levelUps = [];
@@ -293,9 +295,7 @@ class BattleService
                 'stage' => $floor,
                 'stage_name' => $encounter['name'],
                 'kind' => $encounter['kind'],
-                'map_index' => $encounter['map_index'] ?? 1,
-                'room' => $encounter['room'] ?? 1,
-                'rooms' => $encounter['rooms'] ?? 1,
+                'room' => $encounter['room'],
                 'dungeon' => $dungeonKey,
                 'dungeon_name' => $dungeon['name'],
                 'theme' => $dungeon['theme'] ?? $dungeonKey,
@@ -315,14 +315,11 @@ class BattleService
                 'best_floor' => $state['best_floor'],
                 'cleared' => $state['cleared'],
                 'run_floor' => $state['run_floor'],
-                'route' => $state['route'],
-                'path' => $state['path'],
                 'map' => $state['map'],
                 'next_encounter' => $state['encounter'],
                 'history_entry' => [
                     'floor' => $floor,
-                    'map_index' => $encounter['map_index'] ?? 1,
-                    'room' => $encounter['room'] ?? 1,
+                    'room' => $encounter['room'],
                     'name' => $encounter['name'],
                     'enemy' => $encounter['enemy'],
                     'result' => $win ? 'win' : 'lose',

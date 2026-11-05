@@ -1,11 +1,9 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { Link, usePage } from '@inertiajs/vue3';
+import { Link, router, usePage } from '@inertiajs/vue3';
 import ToastStack from '../Components/ToastStack.vue';
 import {
-    formatCountdown,
     formatNumber,
-    startFreeCountdown,
     syncPlayer,
     usePlayer,
 } from '../lib/player';
@@ -36,9 +34,6 @@ const isActive = (href) => (href === '/' ? page.url === '/' : page.url.startsWit
 const profileOpen = ref(false);
 const profileMenu = ref(null);
 
-const freeInLabel = computed(() =>
-    player.free_ready ? 'Gratis lista' : `Gratis en ${formatCountdown(player.free_in)}`,
-);
 const soundTitle = computed(() => (isMuted.value ? 'Activar sonido' : 'Silenciar sonido'));
 const initial = computed(() => (player.name ? player.name.trim().charAt(0).toUpperCase() : '✦'));
 
@@ -62,8 +57,6 @@ watch(
     { deep: true },
 );
 
-let stopCountdown = null;
-
 function onDocumentClick(event) {
     if (profileOpen.value && profileMenu.value && !profileMenu.value.contains(event.target)) {
         profileOpen.value = false;
@@ -77,13 +70,11 @@ function onDocumentKey(event) {
 }
 
 onMounted(() => {
-    stopCountdown = startFreeCountdown();
     document.addEventListener('click', onDocumentClick);
     document.addEventListener('keydown', onDocumentKey);
 });
 
 onBeforeUnmount(() => {
-    stopCountdown?.();
     document.removeEventListener('click', onDocumentClick);
     document.removeEventListener('keydown', onDocumentKey);
 });
@@ -116,6 +107,16 @@ function resetAppearance() {
 function toggleSound() {
     toggleMuted();
     play('click');
+}
+
+function resetAccount() {
+    if (!window.confirm('¿Reiniciar toda la cuenta? Se borran santos, Puntos de Fe, descensos y récords.')) {
+        return;
+    }
+
+    profileOpen.value = false;
+    play('click');
+    router.post('/desarrollo/reiniciar-cuenta');
 }
 </script>
 
@@ -163,7 +164,7 @@ function toggleSound() {
                 </nav>
 
                 <div class="launcher-top-actions">
-                    <span class="grace-chip" :title="freeInLabel">
+                    <span class="grace-chip" title="Puntos de Fe">
                         <span class="coin" aria-hidden="true"></span>
                         {{ formatNumber(player.grace) }}
                         <span class="sr-only">Puntos de Fe</span>
@@ -194,7 +195,7 @@ function toggleSound() {
                                 <span class="launcher-avatar" aria-hidden="true">{{ initial }}</span>
                                 <div class="profile-dropdown-id">
                                     <strong>{{ player.name || 'Peregrino' }}</strong>
-                                    <span>Peregrino · {{ freeInLabel }}</span>
+                                    <span>Peregrino</span>
                                 </div>
                                 <span class="grace-chip grace-chip--sm">
                                     <span class="coin" aria-hidden="true"></span>
@@ -252,6 +253,14 @@ function toggleSound() {
                                     </svg>
                                     {{ soundTitle }}
                                 </button>
+                                <button
+                                    v-if="page.props.canResetAccount"
+                                    type="button"
+                                    class="profile-action profile-action--danger"
+                                    @click="resetAccount"
+                                >
+                                    Reiniciar cuenta (dev)
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -266,23 +275,6 @@ function toggleSound() {
                 </div>
             </main>
         </div>
-
-        <footer class="launcher-bottom">
-            <div class="launcher-bottom-left">
-                <span class="launcher-dot" aria-hidden="true"></span>
-                <span>Conectado · Santoral</span>
-            </div>
-            <div class="launcher-bottom-center">
-                <strong>Sanctorum</strong> · Gacha de Santos
-            </div>
-            <div class="launcher-bottom-right">
-                <span>{{ player.name || 'Peregrino' }}</span>
-                <span class="launcher-sep" aria-hidden="true">·</span>
-                <span>{{ formatNumber(player.grace) }} Puntos de Fe</span>
-                <span class="launcher-sep" aria-hidden="true">·</span>
-                <span>{{ freeInLabel }}</span>
-            </div>
-        </footer>
 
         <ToastStack />
     </div>

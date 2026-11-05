@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class DungeonRun extends Model
 {
     protected $fillable = [
-        'player_id', 'dungeon', 'seed', 'floor', 'route',
+        'player_id', 'dungeon', 'seed', 'floor', 'route', 'room', 'cleared',
         'team', 'vitals', 'blessing',
     ];
 
@@ -16,6 +16,8 @@ class DungeonRun extends Model
         'seed' => 'integer',
         'floor' => 'integer',
         'route' => 'integer',
+        'room' => 'integer',
+        'cleared' => 'array',
         'team' => 'array',
         'vitals' => 'array',
         'blessing' => 'integer',

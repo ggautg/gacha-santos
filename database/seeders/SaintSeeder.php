@@ -7,11 +7,35 @@ use Illuminate\Database\Seeder;
 
 class SaintSeeder extends Seeder
 {
+    /**
+     * Orden de importancia y popularidad: la colección lo usa dentro de cada rareza.
+     *
+     * @var list<string>
+     */
+    private const IMPORTANCE = [
+        'santa-maria-reina', 'san-miguel-arcangel', 'san-francisco-asis', 'san-jose-custodio',
+        'san-pedro-apostol', 'san-pablo-tarso', 'santa-teresa-avila',
+        'san-antonio-padua', 'santiago-apostol', 'san-juan-bautista', 'san-agustin-hipona',
+        'santo-tomas-aquino', 'san-benito-nursia', 'santa-catalina-siena', 'san-gregorio-magno',
+        'santa-rosa-lima',
+        'san-juan-evangelista', 'san-jorge-capadocia', 'san-sebastian', 'san-cristobal',
+        'san-nicolas-bari', 'san-ignacio-loyola', 'san-juan-bosco', 'san-judas-tadeo',
+        'santa-rita-casia', 'santa-lucia-siracusa', 'santa-barbara', 'santa-monica',
+        'santa-clara-asis', 'san-juan-diego', 'san-martin-porres', 'san-marcos-evangelista',
+        'san-lucas-evangelista', 'san-mateo-apostol', 'san-expedito',
+        'san-roque', 'san-blas', 'san-esteban', 'san-cayetano', 'santa-elena', 'san-vito',
+        'san-pancracio', 'santa-filomena', 'beato-carlo-acutis', 'santa-librada',
+        'san-isidro-labrador', 'santa-zita', 'santa-apolonia', 'san-pascual-bailon',
+        'santa-odilia', 'san-fiacre', 'san-eloy',
+    ];
+
     public function run(): void
     {
         $presets = $this->presets();
 
-        foreach ($this->rows() as $sort => $row) {
+        foreach ($this->rows() as $row) {
+            $sort = array_search($row['slug'], self::IMPORTANCE, true);
+
             [$skillType, $skillName, $skillText, $skillPower] = $row['skill'];
 
             Saint::updateOrCreate(
@@ -764,7 +788,7 @@ class SaintSeeder extends Seeder
                 'slug' => 'san-expedito',
                 'name' => 'San Expedito',
                 'epithet' => 'Mártir de la Urgencia',
-                'rarity' => 3, 'role' => 'mártir',
+                'rarity' => 1, 'role' => 'mártir',
                 'era' => 's. IV', 'feast' => '19 de abril',
                 'patronage' => 'Causas urgentes y viajeros',
                 'region' => 'Melitene',
@@ -778,7 +802,7 @@ class SaintSeeder extends Seeder
                 'slug' => 'san-cayetano',
                 'name' => 'San Cayetano de Thiene',
                 'epithet' => 'Providencia del Pan',
-                'rarity' => 2, 'role' => 'pastor',
+                'rarity' => 1, 'role' => 'pastor',
                 'era' => 's. XVI', 'feast' => '7 de agosto',
                 'patronage' => 'Trabajo, pan y desempleados',
                 'region' => 'Vicenza',
@@ -955,6 +979,79 @@ class SaintSeeder extends Seeder
                 'stats' => [34, 32, 32, 36],
                 'skill' => ['smite', 'Golpe de Consuelo', 'Un golpe firme inflige 140% de daño.', 140],
                 'art' => 'apolonia',
+            ],
+            [
+                'slug' => 'san-gregorio-magno',
+                'name' => 'San Gregorio Magno',
+                'epithet' => 'Papa del Canto Sagrado',
+                'rarity' => 4, 'role' => 'papa',
+                'era' => 's. VI', 'feast' => '3 de septiembre',
+                'patronage' => 'Cantores, maestros y estudiantes',
+                'region' => 'Roma',
+                'quote' => 'El canto eleva a los que oran.',
+                'bio' => 'Pontífice que ordenó la liturgia y el canto de la Iglesia. La tradición lo muestra inspirado por la paloma del Espíritu Santo.',
+                'stats' => [74, 78, 72, 70],
+                'skill' => ['buff', 'Canto Gregoriano', 'Eleva el ataque de tu equipo un 25% durante 3 turnos.', 25],
+                'art' => 'agustin',
+                'art_overrides' => ['robe' => '#6b3fa0', 'mantle' => '#c9a97a'],
+            ],
+            [
+                'slug' => 'san-blas',
+                'name' => 'San Blas',
+                'epithet' => 'Obispo de la Garganta',
+                'rarity' => 2, 'role' => 'obispo',
+                'era' => 's. IV', 'feast' => '3 de febrero',
+                'patronage' => 'Enfermedades de garganta',
+                'region' => 'Sebaste',
+                'quote' => 'Por intercesión de san Blas, Dios te libre del mal de garganta.',
+                'bio' => 'Obispo armenio que salvó a un niño de morir atragantado. Su bendición con dos velas cruzadas se invoca contra los males de la garganta.',
+                'stats' => [44, 46, 44, 46],
+                'skill' => ['heal', 'Bendición de Velas', 'Restaura un 18% de vida al aliado más herido.', 18],
+                'art' => 'pablo',
+            ],
+            [
+                'slug' => 'san-esteban',
+                'name' => 'San Esteban',
+                'epithet' => 'Primer Mártir',
+                'rarity' => 2, 'role' => 'diácono',
+                'era' => 's. I', 'feast' => '26 de diciembre',
+                'patronage' => 'Diáconos y canteros',
+                'region' => 'Jerusalén',
+                'quote' => 'Señor, no les tomes en cuenta este pecado.',
+                'bio' => 'Diácono lleno de Espíritu Santo, el primero en dar la vida por Cristo. Murió perdonando a quienes le apedreaban.',
+                'stats' => [46, 44, 48, 44],
+                'skill' => ['smite', 'Piedra del Perdón', 'Lanza una piedra que inflige 150% de daño.', 150],
+                'art' => 'sebastian',
+            ],
+            [
+                'slug' => 'beato-carlo-acutis',
+                'name' => 'Beato Carlo Acutis',
+                'epithet' => 'Patrón de Internet',
+                'rarity' => 2, 'role' => 'laico',
+                'era' => 's. XXI', 'feast' => '12 de octubre',
+                'patronage' => 'Internet, jóvenes y tecnología',
+                'region' => 'Milán',
+                'quote' => 'La Eucaristía es mi autopista hacia el cielo.',
+                'bio' => 'Adolescente milanés que usó la informática para documentar los milagros eucarísticos y evangelizar a sus amigos. Murió joven y fue beatificado en 2020.',
+                'stats' => [46, 50, 44, 48],
+                'skill' => ['drain', 'Red de Milagros', 'Drena 150% de daño y convierte parte de él en vida.', 150],
+                'art' => 'bosco',
+                'art_overrides' => ['robe' => '#2b5f9e'],
+            ],
+            [
+                'slug' => 'santa-librada',
+                'name' => 'Santa Librada',
+                'epithet' => 'Libertad en lo Imposible',
+                'rarity' => 1, 'role' => 'virgen',
+                'era' => 's. VIII', 'feast' => '20 de julio',
+                'patronage' => 'Causas imposibles y prisioneros',
+                'region' => 'Galicia',
+                'quote' => 'Encomienda al Señor tu camino.',
+                'bio' => 'Según la leyenda, una joven que pidió a Dios librarse de un matrimonio no deseado y fue crucificada. Se la invoca en las causas que parecen perdidas.',
+                'stats' => [42, 46, 46, 44],
+                'skill' => ['shield', 'Velo de Liberación', 'Protege al equipo con un escudo del 16% de su vida máxima.', 16],
+                'art' => 'rita',
+                'art_overrides' => ['robe' => '#7a3f2e'],
             ],
         ];
     }
