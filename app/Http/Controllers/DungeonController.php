@@ -211,7 +211,7 @@ class DungeonController extends Controller
         }
 
         $data = $request->validate([
-            'action' => ['required', 'string', 'in:rest,heal,bless,cross,open,read'],
+            'action' => ['required', 'string', 'in:rest,heal,bless,cross,avoid,open,read'],
             'team' => ['nullable', 'array'],
             'team.*' => ['integer'],
         ]);

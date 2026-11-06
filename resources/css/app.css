@@ -6828,6 +6828,36 @@ html:is([data-font='clasica'], [data-font='rubrica']) .mission-copy strong {
     font-variant-numeric: tabular-nums;
 }
 
+.mz-explore {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--mz-muted);
+}
+
+.mz-explore-bar {
+    flex: 1;
+    height: 6px;
+    overflow: hidden;
+    background: rgba(200, 170, 110, 0.16);
+    box-shadow: inset 0 0 0 1px rgba(200, 170, 110, 0.25);
+}
+
+.mz-explore-bar span {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, var(--mz-teal), #6fe8dd);
+    transition: width 0.3s ease;
+}
+
+.mz-explore strong {
+    color: var(--mz-gold-hi);
+    font-variant-numeric: tabular-nums;
+}
+
 .mz-node:disabled {
     cursor: default;
 }

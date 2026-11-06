@@ -146,6 +146,12 @@ const clearedCount = computed(() => mapRooms.value.filter((room) => room.cleared
 const currentCleared = computed(() => mapRooms.value.find((room) => room.current)?.cleared ?? false);
 const boardRatio = computed(() => `${mapState.value.width ?? 9} / ${mapState.value.height ?? 3}`);
 
+const exploredPercent = computed(() => {
+    const total = mapRooms.value.length;
+
+    return total > 0 ? Math.round((clearedCount.value / total) * 100) : 0;
+});
+
 const walkerX = computed(() => cellX(currentRoom.value?.x ?? 0));
 const walkerY = computed(() => cellY(currentRoom.value?.y ?? 0));
 
@@ -219,7 +225,7 @@ const mapHint = computed(() => {
     }
 
     if (current.value.kind === 'trap') {
-        return 'Un paso en falso puede costarte vida o Puntos de Fe.';
+        return 'Puedes cruzar y encajar el daño, o sortearla pagando Puntos de Fe.';
     }
 
     if (current.value.kind === 'treasure') {
@@ -1141,6 +1147,14 @@ const logClass = (entry) => {
                         <span class="mz-legend-item is-fog"><span aria-hidden="true">?</span> Sin explorar</span>
                     </div>
 
+                    <div class="mz-explore">
+                        <span class="mz-explore-label">Despejado</span>
+                        <div class="mz-explore-bar">
+                            <span :style="{ width: `${exploredPercent}%` }"></span>
+                        </div>
+                        <strong>{{ clearedCount }}/{{ mapRooms.length }}</strong>
+                    </div>
+
                     <p class="mz-hint">{{ mapHint }}</p>
 
                     <button v-if="phase === 'running'" type="button" class="mz-btn mz-btn--ghost mz-btn--sm" @click="skipAnimation">
@@ -1295,6 +1309,7 @@ const logClass = (entry) => {
 
                         <div v-else-if="current.kind === 'trap'" class="mz-target-stats">
                             <span>{{ current.effect === 'grace' ? 'Robo de Fe' : 'Daño' }} <strong>{{ current.power }}%</strong></span>
+                            <span>Sortear <strong>{{ current.avoid_cost }} Fe</strong></span>
                         </div>
 
                         <blockquote v-if="current.kind === 'gospel' && current.verse" class="mz-verse">
@@ -1339,8 +1354,17 @@ const logClass = (entry) => {
                         </div>
 
                         <div v-else-if="current.kind === 'trap' && !mapState.resolved" class="mz-actions">
-                            <button type="button" class="mz-btn mz-btn--block" :disabled="stepping" @click="resolveAction('cross')">
+                            <button type="button" class="mz-btn" :disabled="stepping" @click="resolveAction('cross')">
                                 Cruzar la trampa
+                            </button>
+                            <button
+                                type="button"
+                                class="mz-btn mz-btn--ghost"
+                                :disabled="stepping || grace < current.avoid_cost"
+                                :title="`Rodear la trampa cuesta ${current.avoid_cost} Puntos de Fe`"
+                                @click="resolveAction('avoid')"
+                            >
+                                Sortear ({{ current.avoid_cost }} Fe)
                             </button>
                         </div>
 

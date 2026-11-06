@@ -357,6 +357,55 @@ class DungeonTest extends TestCase
         $this->assertContains($room, $run->fresh()->cleared);
     }
 
+    public function test_a_trap_can_be_avoided_by_spending_faith_points(): void
+    {
+        $seed = $this->seedWithNeighbour(['trap']);
+        $player = $this->createPlayer(['grace' => 500]);
+        [$run] = $this->prepareRun($player, 1, 12);
+        $layout = DungeonRules::layout('pecados', $seed, 1);
+        $room = $this->neighbourOf($layout, 0, ['trap']);
+
+        $run->seed = $seed;
+        $run->room = $room;
+        $run->cleared = [];
+        $run->save();
+
+        $node = DungeonRules::currentNode($player, 'pecados', $run);
+        $before = DungeonRules::vitalsFor($player, $run);
+
+        $this->postJson('/mazmorras/pecados/paso', ['action' => 'avoid'])
+            ->assertOk()
+            ->assertJsonPath('outcome.type', 'avoid')
+            ->assertJsonPath('outcome.amount', $node['avoid_cost'])
+            ->assertJsonPath('player.grace', 500 - $node['avoid_cost']);
+
+        $this->assertSame($before, DungeonRules::vitalsFor($player, $run->fresh()));
+        $this->assertContains($room, $run->fresh()->cleared);
+    }
+
+    public function test_a_trap_cannot_be_avoided_without_enough_faith_points(): void
+    {
+        $seed = $this->seedWithNeighbour(['trap']);
+        $player = $this->createPlayer(['grace' => 0]);
+        [$run] = $this->prepareRun($player, 1, 12);
+        $layout = DungeonRules::layout('pecados', $seed, 1);
+        $room = $this->neighbourOf($layout, 0, ['trap']);
+
+        $run->seed = $seed;
+        $run->room = $room;
+        $run->cleared = [];
+        $run->save();
+
+        $node = DungeonRules::currentNode($player, 'pecados', $run);
+
+        $this->postJson('/mazmorras/pecados/paso', ['action' => 'avoid'])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.action.0', 'Necesitas '.$node['avoid_cost'].' Puntos de Fe para sortear la trampa.');
+
+        $this->assertSame(0, $player->fresh()->grace);
+        $this->assertNotContains($room, $run->fresh()->cleared);
+    }
+
     public function test_the_virgin_altar_can_heal_or_bless_the_team(): void
     {
         $seed = $this->seedWithNeighbour(['altar']);

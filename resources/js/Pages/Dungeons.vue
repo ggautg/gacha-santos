@@ -16,6 +16,10 @@ function nodeGlyph(kind) {
             return '✚';
         case 'trap':
             return '⚠';
+        case 'treasure':
+            return '◆';
+        case 'gospel':
+            return '✞';
         case 'boss':
             return '☠';
         default:
@@ -31,6 +35,10 @@ function nodeLabel(kind) {
             return 'Altar';
         case 'trap':
             return 'Trampa';
+        case 'treasure':
+            return 'Tesoro';
+        case 'gospel':
+            return 'Fragmento';
         case 'boss':
             return 'Jefe';
         case 'battle':

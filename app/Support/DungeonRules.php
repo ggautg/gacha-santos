@@ -402,10 +402,12 @@ final class DungeonRules
 
         $links = [$entrance => []];
         $inside = [$entrance];
-        $target = (int) floor($width * $height * 0.55) + $rng(5);
+        $target = min($width * $height, (int) floor($width * $height * 0.55) + $rng(5));
+        $stalled = 0;
 
         // Árbol que crece sobre todo hacia la derecha: el piso se extiende en horizontal.
-        while (count($inside) < $target) {
+        while (count($inside) < $target && $stalled < 1000) {
+            $stalled++;
             $from = $inside[$rng(count($inside))];
             $x = $from % $width;
             $y = intdiv($from, $width);
@@ -430,6 +432,7 @@ final class DungeonRules
             $links[$to] = [$from];
             $links[$from][] = $to;
             $inside[] = $to;
+            $stalled = 0;
         }
 
         // Algunos atajos rompen el árbol y dan formas de laberinto.
@@ -1054,8 +1057,18 @@ final class DungeonRules
             'xp' => 0,
             'effect' => $trap['effect'] ?? 'damage',
             'power' => (int) ($trap['power'] ?? 12),
+            'avoid_cost' => self::trapAvoidCost($floor),
             'mobs' => [],
         ];
+    }
+
+    /**
+     * Coste en Puntos de Fe de rodear una trampa. Crece con la profundidad
+     * para que sortear los peligros no sea gratis en los pisos hondos.
+     */
+    private static function trapAvoidCost(int $floor): int
+    {
+        return 10 + 5 * max(1, $floor);
     }
 
     /**
@@ -1210,6 +1223,25 @@ final class DungeonRules
      */
     private static function resolveTrap(Player $player, DungeonRun $run, array $node, string $action): array
     {
+        if ($action === 'avoid') {
+            $cost = (int) ($node['avoid_cost'] ?? self::trapAvoidCost((int) $node['floor']));
+
+            if ($player->grace < $cost) {
+                throw ValidationException::withMessages([
+                    'action' => 'Necesitas '.$cost.' Puntos de Fe para sortear la trampa.',
+                ]);
+            }
+
+            $player->grace -= $cost;
+            $player->save();
+
+            return [
+                'type' => 'avoid',
+                'text' => $node['name'].': rodeas el peligro y gastas '.$cost.' Puntos de Fe.',
+                'amount' => $cost,
+            ];
+        }
+
         if ($action !== 'cross') {
             throw ValidationException::withMessages([
                 'action' => 'Solo puedes cruzar la trampa.',
