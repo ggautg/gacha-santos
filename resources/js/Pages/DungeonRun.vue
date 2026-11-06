@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import SaintCard from '../Components/SaintCard.vue';
 import { post } from '../lib/api';
@@ -7,6 +7,8 @@ import { patchPlayer } from '../lib/player';
 import { play } from '../lib/sfx';
 import { applyTheme } from '../lib/theme';
 import { toast } from '../lib/toast';
+
+const DungeonScene = defineAsyncComponent(() => import('../Components/DungeonScene.vue'));
 
 const props = defineProps({
     dungeon: { type: Object, required: true },
@@ -65,6 +67,37 @@ const ZOOM_MAX = 2.5;
 const zoom = ref(1);
 const pan = reactive({ x: 0, y: 0 });
 const drag = reactive({ active: false, x: 0, y: 0 });
+const view = ref(readSavedView());
+
+function readSavedView() {
+    try {
+        return window.localStorage.getItem('sanctorum:dungeon-view') === '2d' ? '2d' : '3d';
+    } catch (error) {
+        return '3d';
+    }
+}
+
+function setView(mode) {
+    if (view.value === mode) {
+        return;
+    }
+
+    view.value = mode;
+
+    try {
+        window.localStorage.setItem('sanctorum:dungeon-view', mode);
+    } catch (error) {
+        // Sin almacenamiento: la preferencia vive solo en esta visita.
+    }
+
+    play('click');
+}
+
+function fallbackToMap() {
+    view.value = '2d';
+    toast.info('La vista 3D no está disponible; se muestra el mapa plano.');
+}
+
 const boardStyle = computed(() => ({
     aspectRatio: boardRatio.value,
     transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom.value})`,
@@ -1068,16 +1101,53 @@ const logClass = (entry) => {
                 <header class="mz-panel-head">
                     <h2 class="mz-panel-title">Laberinto del piso {{ runFloor }}</h2>
                     <span class="mz-panel-note">{{ statusText }}</span>
-                    <div class="mz-zoom" role="group" aria-label="Zoom del laberinto">
-                        <button type="button" class="mz-btn mz-btn--ghost mz-btn--sm" aria-label="Alejar" :disabled="zoom <= ZOOM_MIN" @click="zoomBy(-0.2)">−</button>
-                        <button type="button" class="mz-btn mz-btn--ghost mz-btn--sm mz-zoom-level" :title="'Restablecer vista'" @click="resetView">
-                            {{ Math.round(zoom * 100) }}%
-                        </button>
-                        <button type="button" class="mz-btn mz-btn--ghost mz-btn--sm" aria-label="Acercar" :disabled="zoom >= ZOOM_MAX" @click="zoomBy(0.2)">+</button>
+                    <div class="mz-map-tools">
+                        <div class="mz-view-toggle" role="group" aria-label="Vista del laberinto">
+                            <button
+                                type="button"
+                                class="mz-btn mz-btn--ghost mz-btn--sm mz-view-btn"
+                                :class="{ 'is-active': view === '3d' }"
+                                :aria-pressed="view === '3d'"
+                                title="Vista 3D del laberinto"
+                                @click="setView('3d')"
+                            >
+                                3D
+                            </button>
+                            <button
+                                type="button"
+                                class="mz-btn mz-btn--ghost mz-btn--sm mz-view-btn"
+                                :class="{ 'is-active': view === '2d' }"
+                                :aria-pressed="view === '2d'"
+                                title="Mapa plano del laberinto"
+                                @click="setView('2d')"
+                            >
+                                Mapa
+                            </button>
+                        </div>
+                        <div v-if="view === '2d'" class="mz-zoom" role="group" aria-label="Zoom del laberinto">
+                            <button type="button" class="mz-btn mz-btn--ghost mz-btn--sm" aria-label="Alejar" :disabled="zoom <= ZOOM_MIN" @click="zoomBy(-0.2)">−</button>
+                            <button type="button" class="mz-btn mz-btn--ghost mz-btn--sm mz-zoom-level" :title="'Restablecer vista'" @click="resetView">
+                                {{ Math.round(zoom * 100) }}%
+                            </button>
+                            <button type="button" class="mz-btn mz-btn--ghost mz-btn--sm" aria-label="Acercar" :disabled="zoom >= ZOOM_MAX" @click="zoomBy(0.2)">+</button>
+                        </div>
                     </div>
                 </header>
 
+                <DungeonScene
+                    v-if="view === '3d'"
+                    :map="mapState"
+                    :team="teamCards"
+                    :accent="dungeon.accent"
+                    :accent2="dungeon.accent2"
+                    :walking="walking"
+                    :can-choose="canChoose"
+                    @move="moveTo"
+                    @unsupported="fallbackToMap"
+                />
+
                 <div
+                    v-else
                     class="mz-viewport"
                     :class="{ 'is-zoomed': zoom > 1, 'is-dragging': drag.active }"
                     @wheel.prevent="onWheel"
