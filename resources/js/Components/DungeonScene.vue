@@ -23,6 +23,7 @@ const CELL = 2.6;
 const ORBIT_WALL_HEIGHT = 0.95;
 const FIRST_WALL_HEIGHT = 2.7;
 const EYE_HEIGHT = 1.42;
+const RENDER_SCALE = 0.8;
 const ART_RATIO = 24 / 28;
 const CAMERA_KEY = 'sanctorum:dungeon-camera';
 
@@ -62,6 +63,192 @@ const KIND_LABELS = {
     treasure: 'Tesoro',
     gospel: 'Fragmento',
 };
+
+const MINI_FILL = {
+    camp: '#d7b878',
+    altar: '#7fe3d8',
+    battle: '#e84057',
+    boss: '#ff4d6a',
+    trap: '#e0a45c',
+    treasure: '#f0d27a',
+    gospel: '#bfe5ff',
+};
+
+const FACING_LABELS = ['Norte', 'Este', 'Sur', 'Oeste'];
+const FACING_SHORT = ['N', 'E', 'S', 'W'];
+
+/**
+ * Dibuja un icono pixel-art de 16x16 para cada tipo de sala.
+ */
+function makePixelTexture(kind) {
+    const size = 16;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+
+    const px = (x, y, w, h, color) => {
+        ctx.fillStyle = color;
+        ctx.fillRect(x, y, w, h);
+    };
+
+    const box = (x, y, w, h, fill, border = '#0a0d12') => {
+        px(x, y, w, h, border);
+        px(x + 1, y + 1, w - 2, h - 2, fill);
+    };
+
+    const C = {
+        dark: '#0a0d12',
+        stone: '#5f6b78',
+        stoneHi: '#8d99a6',
+        bone: '#f3ead2',
+        gold: '#ffd76a',
+        goldHi: '#ffe9a8',
+        orange: '#f39c3d',
+        flame: '#ffe9a8',
+        brown: '#7a4a25',
+        brownDark: '#4a2c16',
+        teal: '#0ac8b9',
+        blue: '#4aa3ff',
+        steel: '#c7d3df',
+        steelDark: '#8d99a6',
+    };
+
+    switch (kind) {
+        case 'treasure': {
+            box(3, 4, 10, 4, C.gold);
+            box(3, 8, 10, 6, C.brown);
+            px(3, 7, 10, 1, C.dark);
+            px(4, 5, 8, 1, C.goldHi);
+            px(7, 9, 2, 3, C.dark);
+            px(7, 10, 2, 1, C.goldHi);
+            break;
+        }
+        case 'camp': {
+            px(3, 12, 10, 2, C.brown);
+            px(5, 10, 6, 2, C.brownDark);
+            px(7, 2, 2, 1, C.flame);
+            px(6, 3, 4, 1, C.flame);
+            px(5, 4, 6, 2, C.orange);
+            px(4, 6, 8, 3, C.orange);
+            px(5, 9, 6, 2, C.gold);
+            px(7, 6, 2, 4, C.flame);
+            break;
+        }
+        case 'altar': {
+            box(3, 10, 10, 3, C.stone);
+            box(5, 6, 6, 4, C.stone);
+            px(4, 5, 8, 1, C.stoneHi);
+            px(7, 1, 2, 3, C.teal);
+            px(6, 3, 4, 1, C.teal);
+            px(7, 4, 2, 1, C.goldHi);
+            break;
+        }
+        case 'battle': {
+            for (let i = 0; i < 9; i++) {
+                px(3 + i, 3 + i, 1, 1, C.steel);
+                px(12 - i, 3 + i, 1, 1, C.steel);
+            }
+            px(2, 2, 2, 2, C.brown);
+            px(12, 2, 2, 2, C.brown);
+            px(4, 4, 1, 1, C.gold);
+            px(11, 4, 1, 1, C.gold);
+            break;
+        }
+        case 'boss': {
+            box(4, 3, 8, 7, C.bone);
+            box(5, 10, 6, 2, C.bone);
+            px(5, 5, 2, 2, C.dark);
+            px(9, 5, 2, 2, C.dark);
+            px(7, 8, 2, 1, C.dark);
+            px(6, 10, 1, 2, C.dark);
+            px(8, 10, 1, 2, C.dark);
+            px(10, 10, 1, 2, C.dark);
+            break;
+        }
+        case 'trap': {
+            px(2, 11, 12, 3, C.stone);
+            px(2, 10, 12, 1, C.stoneHi);
+
+            for (const bx of [3, 6, 9, 12]) {
+                px(bx + 1, 4, 1, 1, C.steel);
+                px(bx + 1, 5, 1, 5, C.steel);
+                px(bx, 7, 3, 3, C.steelDark);
+            }
+
+            break;
+        }
+        case 'gospel': {
+            box(3, 3, 10, 10, C.blue);
+            px(5, 5, 6, 6, C.bone);
+            px(7, 5, 2, 6, C.gold);
+            px(5, 7, 6, 2, C.gold);
+            break;
+        }
+        default: {
+            box(4, 4, 8, 8, C.stoneHi);
+        }
+    }
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.magFilter = THREE.NearestFilter;
+    texture.minFilter = THREE.NearestFilter;
+    texture.generateMipmaps = false;
+
+    return texture;
+}
+
+/**
+ * Textura de piedra/ladrillo en gris para multiplicar por el color de cada material.
+ */
+function makeStoneTexture(kind) {
+    const size = 16;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+
+    const ctx = canvas.getContext('2d');
+    const shades = kind === 'floor' ? [196, 214, 232] : [156, 176, 198];
+
+    ctx.fillStyle = '#3a3f46';
+    ctx.fillRect(0, 0, size, size);
+
+    if (kind === 'floor') {
+        for (let by = 0; by < 2; by++) {
+            for (let bx = 0; bx < 2; bx++) {
+                const shade = shades[(bx + by * 2 + 1) % shades.length];
+                ctx.fillStyle = `rgb(${shade}, ${shade}, ${shade})`;
+                ctx.fillRect(bx * 8 + 1, by * 8 + 1, 6, 6);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.18)';
+                ctx.fillRect(bx * 8 + 1, by * 8 + 1, 6, 1);
+            }
+        }
+    } else {
+        for (let row = 0; row < 4; row++) {
+            const offset = row % 2 === 0 ? 0 : 4;
+
+            for (let col = -1; col < 3; col++) {
+                const shade = shades[(row + col + 3) % shades.length];
+                ctx.fillStyle = `rgb(${shade}, ${shade}, ${shade})`;
+                ctx.fillRect(col * 8 + offset + 1, row * 4 + 1, 6, 2);
+            }
+        }
+    }
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(2, 2);
+    texture.magFilter = THREE.NearestFilter;
+    texture.minFilter = THREE.NearestFilter;
+    texture.generateMipmaps = false;
+    texture.colorSpace = THREE.SRGBColorSpace;
+
+    return texture;
+}
 
 let renderer = null;
 let scene = null;
@@ -257,7 +444,10 @@ function clearGroup(group) {
 
 function disposeObject(object) {
     object.traverse((node) => {
-        node.geometry?.dispose?.();
+        // THREE.Sprite comparte una geometría interna entre todas las instancias.
+        if (!node.isSprite) {
+            node.geometry?.dispose?.();
+        }
 
         const materials = Array.isArray(node.material) ? node.material : [node.material];
 
@@ -298,6 +488,48 @@ const aheadRoom = computed(() => roomAtDirection(1));
 const behindRoom = computed(() => roomAtDirection(-1));
 const canStepForward = computed(() => aheadRoom.value !== null && aheadRoom.value.reachable && props.canChoose);
 const canStepBackward = computed(() => behindRoom.value !== null && behindRoom.value.reachable && props.canChoose);
+
+const currentRoomData = computed(() => currentRoom());
+const facingLabel = computed(() => FACING_LABELS[facing.value]);
+const facingShort = computed(() => FACING_SHORT[facing.value]);
+
+const aheadInfo = computed(() => {
+    const current = currentRoomData.value;
+    const room = aheadRoom.value;
+
+    if (current === null) {
+        return { label: '—', kind: null };
+    }
+
+    if (room === null || !current.links.includes(room.id)) {
+        return { label: 'Muro', kind: null };
+    }
+
+    return {
+        label: room.known ? (KIND_LABELS[room.kind] ?? 'Sala') : 'Sin explorar',
+        kind: room.kind ?? null,
+    };
+});
+
+const miniRooms = computed(() => (props.map?.rooms ?? []).filter((room) => room.known));
+const miniWidth = computed(() => Math.max(1, props.map?.width ?? 9));
+const miniHeight = computed(() => Math.max(1, props.map?.height ?? 3));
+
+function miniFill(room) {
+    if (room.current) {
+        return '#ffe9a8';
+    }
+
+    if (room.reachable) {
+        return '#0ac8b9';
+    }
+
+    if (room.cleared) {
+        return '#2f4a5a';
+    }
+
+    return MINI_FILL[room.kind] ?? '#2a4a63';
+}
 
 function nearestYaw(target) {
     const twoPi = Math.PI * 2;
@@ -536,97 +768,31 @@ function tweenCamera(target, position, followAfter) {
     follow = false;
 }
 
-function addMarker(room, wx, wz, color) {
+function addMarker(room, wx, wz) {
+    const texture = makePixelTexture(room.kind);
     const dim = room.cleared && !room.current;
-    const material = new THREE.MeshStandardMaterial({
-        color,
-        emissive: color,
-        emissiveIntensity: dim ? 0.35 : 1.15,
-        metalness: 0.55,
-        roughness: 0.35,
-        transparent: dim,
-        opacity: dim ? 0.6 : 1,
+    const material = new THREE.SpriteMaterial({
+        map: texture,
+        transparent: true,
+        depthWrite: false,
+        alphaTest: 0.08,
+        opacity: dim ? 0.55 : 1,
     });
 
-    const spinner = new THREE.Group();
-    let spinSpeed = 0.8;
-
-    switch (room.kind) {
-        case 'camp': {
-            const ring = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.065, 8, 22), material);
-            ring.rotation.x = Math.PI / 2;
-            const flame = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.3, 5), material);
-            flame.position.y = 0.08;
-            spinner.add(ring, flame);
-            spinner.rotation.x = 0.3;
-            spinSpeed = 0.55;
-            break;
-        }
-        case 'altar': {
-            const column = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.29, 0.62, 6), material);
-            const halo = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.035, 8, 20), material);
-            halo.position.y = 0.43;
-            halo.rotation.x = Math.PI / 2;
-            spinner.add(column, halo);
-            spinSpeed = 0.45;
-            break;
-        }
-        case 'trap': {
-            const spike = new THREE.Mesh(new THREE.ConeGeometry(0.27, 0.5, 4), material);
-            spike.rotation.y = Math.PI / 4;
-            spinner.add(spike);
-            spinSpeed = 0.6;
-            break;
-        }
-        case 'treasure': {
-            const chest = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.32, 0.44), material);
-            const lid = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.08, 0.5), material);
-            lid.position.y = 0.2;
-            spinner.add(chest, lid);
-            spinSpeed = 0.7;
-            break;
-        }
-        case 'gospel': {
-            const spine = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.46, 0.09), material);
-            const crossbar = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.09, 0.09), material);
-            crossbar.position.y = 0.08;
-            spinner.add(spine, crossbar);
-            spinSpeed = 0.5;
-            break;
-        }
-        case 'boss': {
-            const core = new THREE.Mesh(new THREE.OctahedronGeometry(0.42, 0), material);
-            const crown = new THREE.Mesh(new THREE.TorusGeometry(0.52, 0.035, 8, 28), material);
-            crown.rotation.x = Math.PI / 2;
-            spinner.add(core, crown);
-            spinSpeed = 1.5;
-            break;
-        }
-        default: {
-            const blade = new THREE.Mesh(new THREE.OctahedronGeometry(0.3, 0), material);
-            spinner.add(blade);
-            spinSpeed = 1;
-        }
-    }
-
-    const group = new THREE.Group();
-    group.position.set(wx, 0.95, wz);
-    group.add(spinner);
-    mapGroup.add(group);
-
-    spinner.traverse((node) => {
-        if (node.isMesh) {
-            node.userData.room = room;
-            pickables.push(node);
-        }
-    });
+    const sprite = new THREE.Sprite(material);
+    const size = firstPerson.value ? 0.92 : 1.4;
+    sprite.scale.set(size, size, 1);
+    sprite.position.set(wx, firstPerson.value ? 1.12 : 1.35, wz);
+    sprite.userData.room = room;
+    mapGroup.add(sprite);
+    pickables.push(sprite);
 
     markers.set(room.id, {
-        group,
-        spinner,
-        baseY: 0.95,
+        group: sprite,
+        spinner: sprite,
+        baseY: sprite.position.y,
         phase: room.id * 1.7,
-        speed: spinSpeed,
+        speed: 0,
     });
 }
 
@@ -687,17 +853,21 @@ function rebuildMap() {
     const accent = new THREE.Color(props.accent || '#0ac8b9');
     const accent2 = new THREE.Color(props.accent2 || '#c8aa6e');
     const height = wallHeight();
+    const floorTexture = makeStoneTexture('floor');
+    const wallTexture = makeStoneTexture('wall');
 
     const floorGeometry = new THREE.BoxGeometry(CELL * 0.96, 0.24, CELL * 0.96);
     const wallXGeometry = new THREE.BoxGeometry(CELL + 0.2, height, 0.18);
     const wallZGeometry = new THREE.BoxGeometry(0.18, height, CELL + 0.2);
     const wallMaterial = new THREE.MeshStandardMaterial({
-        color: 0x1b2a3a,
+        color: 0x5a6b7d,
+        map: wallTexture,
         roughness: 0.92,
         metalness: 0.06,
     });
     const corridorMaterial = new THREE.MeshStandardMaterial({
-        color: 0x122430,
+        color: 0x2a4454,
+        map: floorTexture,
         emissive: accent,
         emissiveIntensity: 0.12,
         roughness: 0.9,
@@ -725,6 +895,7 @@ function rebuildMap() {
         const baseEmissive = room.current ? 0.55 : room.reachable ? 0.26 : room.cleared ? 0.06 : 0.13;
         const tileMaterial = new THREE.MeshStandardMaterial({
             color: new THREE.Color(0x0d1a26).lerp(kindColor, room.current ? 0.3 : 0.15),
+            map: floorTexture,
             emissive: kindColor.clone(),
             emissiveIntensity: baseEmissive,
             metalness: 0.22,
@@ -812,8 +983,8 @@ function rebuildMap() {
             mapGroup.add(wall);
         }
 
-        if (room.kind) {
-            addMarker(room, wx, wz, kindColor);
+        if (room.kind && (!firstPerson.value || !room.current)) {
+            addMarker(room, wx, wz);
         }
 
         if (room.reachable) {
@@ -967,9 +1138,9 @@ function init() {
 
     camera = new THREE.PerspectiveCamera(50, 1, 0.1, 220);
 
-    renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    renderer.setSize(host.value.clientWidth || 1, host.value.clientHeight || 1);
+    renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(1);
+    sizeRenderer(host.value.clientWidth || 1, host.value.clientHeight || 1);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.08;
@@ -977,6 +1148,7 @@ function init() {
     renderer.shadowMap.type = THREE.PCFShadowMap;
     renderer.domElement.style.display = 'block';
     renderer.domElement.style.cursor = 'grab';
+    renderer.domElement.style.imageRendering = 'pixelated';
     renderer.domElement.style.touchAction = 'none';
     host.value.appendChild(renderer.domElement);
 
@@ -1051,6 +1223,14 @@ function init() {
     resize();
 }
 
+function sizeRenderer(width, height) {
+    renderer.setSize(
+        Math.max(1, Math.round(width * RENDER_SCALE)),
+        Math.max(1, Math.round(height * RENDER_SCALE)),
+        false,
+    );
+}
+
 function resize() {
     if (renderer === null || camera === null || host.value === null) {
         return;
@@ -1059,7 +1239,7 @@ function resize() {
     const width = host.value.clientWidth || 1;
     const height = host.value.clientHeight || 1;
 
-    renderer.setSize(width, height, false);
+    sizeRenderer(width, height);
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
 }
@@ -1255,6 +1435,48 @@ onBeforeUnmount(cleanup);
                         Piso
                     </button>
                 </template>
+            </div>
+
+            <div v-if="firstPerson" class="mz-mini" aria-hidden="true">
+                <div class="mz-mini-compass">
+                    <span
+                        v-for="(label, index) in FACING_SHORT"
+                        :key="label"
+                        class="mz-mini-dir"
+                        :class="{ 'is-active': index === facing }"
+                    >
+                        {{ label }}
+                    </span>
+                </div>
+
+                <div
+                    class="mz-mini-grid"
+                    :style="{
+                        gridTemplateColumns: `repeat(${miniWidth}, 10px)`,
+                        gridTemplateRows: `repeat(${miniHeight}, 10px)`,
+                    }"
+                >
+                    <span
+                        v-for="room in miniRooms"
+                        :key="room.id"
+                        class="mz-mini-cell"
+                        :class="{ 'is-current': room.current, 'is-reachable': room.reachable }"
+                        :style="{ gridColumn: room.x + 1, gridRow: room.y + 1, background: miniFill(room) }"
+                    >
+                        <b
+                            v-if="room.current"
+                            class="mz-mini-arrow"
+                            :style="{ transform: `rotate(${facing * 90}deg)` }"
+                        >
+                            ▲
+                        </b>
+                    </span>
+                </div>
+
+                <p class="mz-mini-ahead">
+                    <span class="mz-mini-face">{{ facingShort }}</span>
+                    {{ aheadInfo.label }}
+                </p>
             </div>
 
             <p class="mz-scene-hint">

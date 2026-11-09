@@ -6819,6 +6819,23 @@ html:is([data-font='clasica'], [data-font='rubrica']) .mission-copy strong {
     display: block;
     width: 100%;
     height: 100%;
+    image-rendering: pixelated;
+}
+
+.mz-scene::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+        to bottom,
+        rgba(0, 0, 0, 0.32) 0,
+        rgba(0, 0, 0, 0.32) 1px,
+        transparent 1px,
+        transparent 3px
+    );
+    opacity: 0.4;
 }
 
 .mz-scene::after {
@@ -6873,6 +6890,90 @@ html:is([data-font='clasica'], [data-font='rubrica']) .mission-copy strong {
     color: rgba(240, 230, 210, 0.62);
     text-shadow: 0 1px 4px #000;
     pointer-events: none;
+}
+
+.mz-mini {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    z-index: 2;
+    display: grid;
+    gap: 6px;
+    padding: 8px 10px;
+    border: 1px solid rgba(200, 170, 110, 0.3);
+    background: rgba(4, 10, 18, 0.8);
+    clip-path: var(--mz-cut-sm);
+    pointer-events: none;
+}
+
+.mz-mini-compass {
+    display: flex;
+    gap: 3px;
+    font-family: var(--font-pixel);
+    font-size: 8px;
+    line-height: 1;
+    letter-spacing: 1px;
+}
+
+.mz-mini-dir {
+    padding: 2px 4px;
+    color: rgba(240, 230, 210, 0.38);
+}
+
+.mz-mini-dir.is-active {
+    background: var(--mz-gold-hi);
+    color: #1a1205;
+}
+
+.mz-mini-grid {
+    display: grid;
+    gap: 2px;
+    width: max-content;
+}
+
+.mz-mini-cell {
+    position: relative;
+    width: 10px;
+    height: 10px;
+    box-shadow: inset 0 0 0 1px rgba(4, 10, 18, 0.7);
+}
+
+.mz-mini-cell.is-reachable {
+    box-shadow: inset 0 0 0 1px rgba(10, 200, 185, 0.85), 0 0 6px rgba(10, 200, 185, 0.55);
+}
+
+.mz-mini-cell.is-current {
+    box-shadow: inset 0 0 0 1px #fff6d8, 0 0 8px rgba(255, 233, 168, 0.8);
+}
+
+.mz-mini-arrow {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    font-size: 8px;
+    line-height: 1;
+    color: #1a1205;
+    transform-origin: 50% 50%;
+}
+
+.mz-mini-ahead {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    font-family: var(--font-pixel);
+    font-size: 8px;
+    line-height: 1.2;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--mz-gold-hi);
+}
+
+.mz-mini-face {
+    padding: 2px 4px;
+    background: var(--mz-teal);
+    color: #04121a;
 }
 
 .mz-scene-hover {
