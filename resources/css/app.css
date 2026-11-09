@@ -6835,7 +6835,30 @@ html:is([data-font='clasica'], [data-font='rubrica']) .mission-copy strong {
     right: 12px;
     z-index: 2;
     display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
     gap: 6px;
+    max-width: calc(100% - 24px);
+}
+
+.mz-scene-pad {
+    position: absolute;
+    right: 14px;
+    bottom: 12px;
+    z-index: 2;
+    display: flex;
+    gap: 6px;
+}
+
+.mz-scene-pad-btn {
+    min-width: 42px;
+    padding: 8px 10px;
+    font-size: 16px;
+    line-height: 1;
+}
+
+.mz-scene-pad-btn:disabled {
+    opacity: 0.3;
 }
 
 .mz-scene-hint {
@@ -6844,7 +6867,7 @@ html:is([data-font='clasica'], [data-font='rubrica']) .mission-copy strong {
     bottom: 12px;
     z-index: 2;
     margin: 0;
-    max-width: min(72%, 460px);
+    max-width: min(62%, 460px);
     font-size: 11px;
     letter-spacing: 0.6px;
     color: rgba(240, 230, 210, 0.62);

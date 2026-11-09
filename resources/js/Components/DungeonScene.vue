@@ -1,5 +1,5 @@
 <script setup>
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
@@ -17,10 +17,31 @@ const emit = defineEmits(['move', 'unsupported']);
 const host = ref(null);
 const failed = ref(false);
 const hoveredRoom = ref(null);
+const firstPerson = ref(readCameraMode());
 
 const CELL = 2.6;
-const WALL_HEIGHT = 0.95;
+const ORBIT_WALL_HEIGHT = 0.95;
+const FIRST_WALL_HEIGHT = 2.7;
+const EYE_HEIGHT = 1.42;
 const ART_RATIO = 24 / 28;
+const CAMERA_KEY = 'sanctorum:dungeon-camera';
+
+const DIRECTIONS = [
+    { dx: 0, dz: -1 },
+    { dx: 1, dz: 0 },
+    { dx: 0, dz: 1 },
+    { dx: -1, dz: 0 },
+];
+
+const facing = ref(0);
+
+function readCameraMode() {
+    try {
+        return window.localStorage.getItem(CAMERA_KEY) !== 'orbit';
+    } catch (error) {
+        return true;
+    }
+}
 
 const KIND_COLORS = {
     camp: 0xd7b878,
@@ -58,6 +79,10 @@ let cameraTween = null;
 let hoveredId = null;
 let pointerDown = null;
 let dragDistance = 0;
+let yaw = 0;
+let yawTarget = 0;
+let eyeLight = null;
+let initialisedFacing = false;
 
 const timer = new THREE.Timer();
 const raycaster = new THREE.Raycaster();
@@ -67,6 +92,7 @@ const focusPoint = new THREE.Vector3();
 const mapCenter = new THREE.Vector3();
 
 const roomMeshes = [];
+const pickables = [];
 const markers = new Map();
 const rings = [];
 const partySprites = [];
@@ -105,6 +131,7 @@ const onClick = (event) => {
     const room = pickRoom(event);
 
     if (room && room.reachable && props.canChoose) {
+        faceRoom(room);
         emit('move', room);
     }
 };
@@ -136,6 +163,45 @@ const onPointerLeave = () => {
     hoveredId = null;
     hoveredRoom.value = null;
     applyHover();
+};
+
+const onKeyDown = (event) => {
+    if (!firstPerson.value || failed.value || event.repeat) {
+        return;
+    }
+
+    const target = event.target;
+
+    if (target instanceof HTMLElement && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        return;
+    }
+
+    switch (event.key) {
+        case 'ArrowUp':
+        case 'w':
+        case 'W':
+            event.preventDefault();
+            stepForward();
+            break;
+        case 'ArrowDown':
+        case 's':
+        case 'S':
+            event.preventDefault();
+            stepBackward();
+            break;
+        case 'ArrowLeft':
+        case 'a':
+        case 'A':
+            event.preventDefault();
+            turn(-1);
+            break;
+        case 'ArrowRight':
+        case 'd':
+        case 'D':
+            event.preventDefault();
+            turn(1);
+            break;
+    }
 };
 
 function worldX(x) {
@@ -173,7 +239,7 @@ function pickRoom(event) {
 
     raycaster.setFromCamera(pointer, camera);
 
-    const hit = raycaster.intersectObjects(roomMeshes, false)[0];
+    const hit = raycaster.intersectObjects([...roomMeshes, ...pickables], false)[0];
 
     return hit?.object?.userData?.room ?? null;
 }
@@ -208,6 +274,183 @@ function disposeObject(object) {
 
 function currentRoom() {
     return (props.map?.rooms ?? []).find((room) => room.current) ?? null;
+}
+
+function wallHeight() {
+    return firstPerson.value ? FIRST_WALL_HEIGHT : ORBIT_WALL_HEIGHT;
+}
+
+function roomAtDirection(step = 1) {
+    const room = currentRoom();
+
+    if (room === null) {
+        return null;
+    }
+
+    const direction = DIRECTIONS[facing.value];
+
+    return (props.map?.rooms ?? []).find(
+        (candidate) => candidate.x === room.x + direction.dx * step && candidate.y === room.y + direction.dz * step,
+    ) ?? null;
+}
+
+const aheadRoom = computed(() => roomAtDirection(1));
+const behindRoom = computed(() => roomAtDirection(-1));
+const canStepForward = computed(() => aheadRoom.value !== null && aheadRoom.value.reachable && props.canChoose);
+const canStepBackward = computed(() => behindRoom.value !== null && behindRoom.value.reachable && props.canChoose);
+
+function nearestYaw(target) {
+    const twoPi = Math.PI * 2;
+
+    return yawTarget + ((((target - yawTarget) % twoPi) + 3 * Math.PI) % twoPi - Math.PI);
+}
+
+function faceDirection(index, instant = false) {
+    facing.value = ((index % 4) + 4) % 4;
+    yawTarget = nearestYaw(facing.value * (Math.PI / 2));
+
+    if (instant) {
+        yaw = yawTarget;
+    }
+}
+
+function faceRoom(room) {
+    const current = currentRoom();
+
+    if (current === null || !room) {
+        return;
+    }
+
+    const index = DIRECTIONS.findIndex(
+        (direction) => direction.dx === room.x - current.x && direction.dz === room.y - current.y,
+    );
+
+    if (index >= 0) {
+        faceDirection(index);
+    }
+}
+
+function turn(quarters) {
+    faceDirection(facing.value + quarters);
+}
+
+function ensureFacing() {
+    const current = currentRoom();
+
+    if (current === null) {
+        return;
+    }
+
+    const ahead = roomAtDirection(1);
+
+    if (ahead !== null && current.links.includes(ahead.id)) {
+        return;
+    }
+
+    const option = DIRECTIONS.findIndex((direction) => {
+        const candidate = (props.map?.rooms ?? []).find(
+            (room) => room.x === current.x + direction.dx && room.y === current.y + direction.dz,
+        );
+
+        return candidate !== undefined && current.links.includes(candidate.id);
+    });
+
+    faceDirection(option >= 0 ? option : 0, true);
+}
+
+function stepForward() {
+    if (canStepForward.value) {
+        emit('move', aheadRoom.value);
+    }
+}
+
+function stepBackward() {
+    if (canStepBackward.value) {
+        emit('move', behindRoom.value);
+    }
+}
+
+function applyFog() {
+    if (scene !== null && scene.fog !== null) {
+        scene.fog.near = firstPerson.value ? 2.2 : 18;
+        scene.fog.far = firstPerson.value ? 20 : 58;
+    }
+}
+
+function applyLighting() {
+    if (currentLight !== null) {
+        currentLight.intensity = firstPerson.value ? 8 : 42;
+    }
+
+    if (eyeLight !== null) {
+        eyeLight.intensity = firstPerson.value ? 3.5 : 0;
+        eyeLight.visible = firstPerson.value;
+    }
+}
+
+function applyFirstPersonCamera(delta) {
+    if (camera === null || partyGroup === null) {
+        return;
+    }
+
+    let diff = yawTarget - yaw;
+    diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+    yaw += diff * Math.min(1, delta * 10);
+
+    const bob = props.walking ? Math.sin(walkTime * 2) * 0.03 : 0;
+    const x = partyGroup.position.x;
+    const z = partyGroup.position.z;
+    const eyeY = EYE_HEIGHT + bob;
+
+    camera.position.set(x, eyeY, z);
+    camera.lookAt(x + Math.sin(yaw), eyeY - 0.08, z - Math.cos(yaw));
+
+    if (eyeLight !== null) {
+        eyeLight.position.set(x, eyeY + 0.15, z);
+    }
+}
+
+function setCamera(mode) {
+    const next = mode === 'first';
+
+    if (firstPerson.value === next) {
+        return;
+    }
+
+    firstPerson.value = next;
+
+    try {
+        window.localStorage.setItem(CAMERA_KEY, next ? 'first' : 'orbit');
+    } catch (error) {
+        // Sin almacenamiento: la preferencia vive solo en esta visita.
+    }
+
+    if (next) {
+        ensureFacing();
+        focusCurrentRoom(true);
+        yaw = yawTarget;
+        controls.enabled = false;
+    } else {
+        controls.enabled = true;
+        snapView();
+    }
+
+    if (partyGroup !== null) {
+        partyGroup.visible = !next;
+    }
+
+    if (eyeLight !== null) {
+        eyeLight.visible = next;
+    }
+
+    applyFog();
+    applyLighting();
+    rebuildMap();
+    rebuildDecor();
+
+    if (next) {
+        applyFirstPersonCamera(1);
+    }
 }
 
 function focusCurrentRoom(snap = false) {
@@ -371,6 +614,13 @@ function addMarker(room, wx, wz, color) {
     group.add(spinner);
     mapGroup.add(group);
 
+    spinner.traverse((node) => {
+        if (node.isMesh) {
+            node.userData.room = room;
+            pickables.push(node);
+        }
+    });
+
     markers.set(room.id, {
         group,
         spinner,
@@ -417,6 +667,7 @@ function rebuildMap() {
     markers.clear();
     rings.length = 0;
     roomMeshes.length = 0;
+    pickables.length = 0;
     hoveredId = null;
     hoveredRoom.value = null;
 
@@ -435,10 +686,11 @@ function rebuildMap() {
 
     const accent = new THREE.Color(props.accent || '#0ac8b9');
     const accent2 = new THREE.Color(props.accent2 || '#c8aa6e');
+    const height = wallHeight();
 
     const floorGeometry = new THREE.BoxGeometry(CELL * 0.96, 0.24, CELL * 0.96);
-    const wallXGeometry = new THREE.BoxGeometry(CELL + 0.2, WALL_HEIGHT, 0.18);
-    const wallZGeometry = new THREE.BoxGeometry(0.18, WALL_HEIGHT, CELL + 0.2);
+    const wallXGeometry = new THREE.BoxGeometry(CELL + 0.2, height, 0.18);
+    const wallZGeometry = new THREE.BoxGeometry(0.18, height, CELL + 0.2);
     const wallMaterial = new THREE.MeshStandardMaterial({
         color: 0x1b2a3a,
         roughness: 0.92,
@@ -502,17 +754,32 @@ function rebuildMap() {
 
                 if (neighbour.known) {
                     const alongX = dz === 0;
+                    const midX = (wx + worldX(nx)) / 2;
+                    const midZ = (wz + worldZ(ny)) / 2;
                     const geometry = alongX
                         ? new THREE.BoxGeometry(CELL + 0.16, 0.16, 1.15)
                         : new THREE.BoxGeometry(1.15, 0.16, CELL + 0.16);
                     const corridor = new THREE.Mesh(geometry, corridorMaterial);
-                    corridor.position.set(
-                        (wx + worldX(nx)) / 2,
-                        -0.08,
-                        (wz + worldZ(ny)) / 2,
-                    );
+                    corridor.position.set(midX, -0.08, midZ);
                     corridor.receiveShadow = true;
                     mapGroup.add(corridor);
+
+                    const sideGeometry = alongX
+                        ? new THREE.BoxGeometry(CELL + 0.16, height, 0.18)
+                        : new THREE.BoxGeometry(0.18, height, CELL + 0.16);
+                    const sideOffset = 1.15 / 2 + 0.09;
+
+                    for (const sign of [-1, 1]) {
+                        const side = new THREE.Mesh(sideGeometry, wallMaterial);
+                        side.position.set(
+                            midX + (alongX ? 0 : sign * sideOffset),
+                            height / 2,
+                            midZ + (alongX ? sign * sideOffset : 0),
+                        );
+                        side.castShadow = true;
+                        side.receiveShadow = true;
+                        mapGroup.add(side);
+                    }
                 } else {
                     const alongX = dz === 0;
                     const stubLength = CELL * 0.44;
@@ -539,7 +806,7 @@ function rebuildMap() {
 
             const alongX = dz === 0;
             const wall = new THREE.Mesh(alongX ? wallXGeometry : wallZGeometry, wallMaterial);
-            wall.position.set(wx + dx * (CELL / 2), WALL_HEIGHT / 2, wz + dz * (CELL / 2));
+            wall.position.set(wx + dx * (CELL / 2), height / 2, wz + dz * (CELL / 2));
             wall.castShadow = true;
             wall.receiveShadow = true;
             mapGroup.add(wall);
@@ -556,6 +823,12 @@ function rebuildMap() {
         if (room.current) {
             addCurrentRune(wx, wz, accent2);
         }
+    }
+
+    if (!initialisedFacing) {
+        initialisedFacing = true;
+        ensureFacing();
+        yaw = yawTarget;
     }
 
     focusCurrentRoom(false);
@@ -690,6 +963,7 @@ function init() {
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x04080f);
     scene.fog = new THREE.Fog(0x04080f, 18, 58);
+    applyFog();
 
     camera = new THREE.PerspectiveCamera(50, 1, 0.1, 220);
 
@@ -719,6 +993,7 @@ function init() {
     controls.rotateSpeed = 0.75;
     controls.zoomSpeed = 0.9;
     controls.target.set(0, 0.5, 0);
+    controls.enabled = !firstPerson.value;
 
     const hemisphere = new THREE.HemisphereLight(0x8fb6d9, 0x03060b, 1.15);
     scene.add(hemisphere);
@@ -748,11 +1023,21 @@ function init() {
     currentLight.position.set(0, 2.6, 0);
     scene.add(currentLight);
 
+    eyeLight = new THREE.PointLight(0xffd9a0, 3.5, 9, 2);
+    eyeLight.visible = firstPerson.value;
+    eyeLight.position.set(0, EYE_HEIGHT + 0.15, 0);
+    scene.add(eyeLight);
+
+    applyLighting();
+
     mapGroup = new THREE.Group();
     scene.add(mapGroup);
 
     partyGroup = new THREE.Group();
+    partyGroup.visible = !firstPerson.value;
     scene.add(partyGroup);
+
+    window.addEventListener('keydown', onKeyDown);
 
     renderer.domElement.addEventListener('pointerdown', onPointerDown);
     renderer.domElement.addEventListener('pointerup', onPointerUp);
@@ -804,22 +1089,6 @@ function tick() {
         }
     }
 
-    if (cameraTween !== null) {
-        cameraTween.progress = Math.min(1, cameraTween.progress + delta / 0.55);
-        const eased = 1 - Math.pow(1 - cameraTween.progress, 3);
-        controls.target.lerpVectors(cameraTween.fromTarget, cameraTween.toTarget, eased);
-        camera.position.lerpVectors(cameraTween.fromPosition, cameraTween.toPosition, eased);
-
-        if (cameraTween.progress >= 1) {
-            follow = cameraTween.followAfter;
-            cameraTween = null;
-        }
-    } else if (follow) {
-        const before = controls.target.clone();
-        controls.target.lerp(focusPoint, Math.min(1, delta * 4));
-        camera.position.add(controls.target.clone().sub(before));
-    }
-
     if (partyGroup !== null) {
         partyGroup.position.lerp(partyTarget, Math.min(1, delta * 5.5));
     }
@@ -834,7 +1103,28 @@ function tick() {
         sprite.position.y += (base + bob - sprite.position.y) * Math.min(1, delta * 10);
     }
 
-    controls.update();
+    if (firstPerson.value) {
+        applyFirstPersonCamera(delta);
+    } else {
+        if (cameraTween !== null) {
+            cameraTween.progress = Math.min(1, cameraTween.progress + delta / 0.55);
+            const eased = 1 - Math.pow(1 - cameraTween.progress, 3);
+            controls.target.lerpVectors(cameraTween.fromTarget, cameraTween.toTarget, eased);
+            camera.position.lerpVectors(cameraTween.fromPosition, cameraTween.toPosition, eased);
+
+            if (cameraTween.progress >= 1) {
+                follow = cameraTween.followAfter;
+                cameraTween = null;
+            }
+        } else if (follow) {
+            const before = controls.target.clone();
+            controls.target.lerp(focusPoint, Math.min(1, delta * 4));
+            camera.position.add(controls.target.clone().sub(before));
+        }
+
+        controls.update();
+    }
+
     renderer.render(scene, camera);
 }
 
@@ -843,6 +1133,7 @@ function cleanup() {
     cancelAnimationFrame(raf);
 
     timer.disconnect();
+    window.removeEventListener('keydown', onKeyDown);
     resizeObserver?.disconnect();
     resizeObserver = null;
 
@@ -869,7 +1160,9 @@ function cleanup() {
     mapGroup = null;
     partyGroup = null;
     currentLight = null;
+    eyeLight = null;
     roomMeshes.length = 0;
+    pickables.length = 0;
     markers.clear();
     rings.length = 0;
     partySprites.length = 0;
@@ -881,7 +1174,14 @@ onMounted(() => {
         rebuildMap();
         rebuildDecor();
         rebuildParty();
-        snapView();
+
+        if (firstPerson.value) {
+            focusCurrentRoom(true);
+            applyFirstPersonCamera(1);
+        } else {
+            snapView();
+        }
+
         tick();
     } catch (error) {
         failed.value = true;
@@ -924,15 +1224,59 @@ onBeforeUnmount(cleanup);
 
         <template v-else>
             <div class="mz-scene-tools">
-                <button type="button" class="mz-btn mz-btn--ghost mz-btn--sm" title="Centrar en el equipo" @click="resetView">
-                    Centrar
-                </button>
-                <button type="button" class="mz-btn mz-btn--ghost mz-btn--sm" title="Ver todo el piso" @click="overview">
-                    Piso
-                </button>
+                <div class="mz-view-toggle" role="group" aria-label="Cámara del laberinto">
+                    <button
+                        type="button"
+                        class="mz-btn mz-btn--ghost mz-btn--sm mz-view-btn"
+                        :class="{ 'is-active': firstPerson }"
+                        :aria-pressed="firstPerson"
+                        title="Vista en primera persona"
+                        @click="setCamera('first')"
+                    >
+                        1ª persona
+                    </button>
+                    <button
+                        type="button"
+                        class="mz-btn mz-btn--ghost mz-btn--sm mz-view-btn"
+                        :class="{ 'is-active': !firstPerson }"
+                        :aria-pressed="!firstPerson"
+                        title="Vista orbital del laberinto"
+                        @click="setCamera('orbit')"
+                    >
+                        Órbita
+                    </button>
+                </div>
+
+                <template v-if="!firstPerson">
+                    <button type="button" class="mz-btn mz-btn--ghost mz-btn--sm" title="Centrar en el equipo" @click="resetView">
+                        Centrar
+                    </button>
+                    <button type="button" class="mz-btn mz-btn--ghost mz-btn--sm" title="Ver todo el piso" @click="overview">
+                        Piso
+                    </button>
+                </template>
             </div>
 
-            <p class="mz-scene-hint">Arrastra para girar · Rueda para acercar · Pulsa una sala conectada</p>
+            <p class="mz-scene-hint">
+                {{ firstPerson
+                    ? 'W/↑ avanzar · S/↓ retroceder · A/D girar · Pulsa una sala conectada'
+                    : 'Arrastra para girar · Rueda para acercar · Pulsa una sala conectada' }}
+            </p>
+
+            <div v-if="firstPerson" class="mz-scene-pad" role="group" aria-label="Movimiento en primera persona">
+                <button type="button" class="mz-btn mz-btn--ghost mz-btn--sm mz-scene-pad-btn" title="Girar a la izquierda" aria-label="Girar a la izquierda" @click="turn(-1)">
+                    ↺
+                </button>
+                <button type="button" class="mz-btn mz-btn--ghost mz-btn--sm mz-scene-pad-btn" title="Avanzar" aria-label="Avanzar" :disabled="!canStepForward" @click="stepForward">
+                    ↑
+                </button>
+                <button type="button" class="mz-btn mz-btn--ghost mz-btn--sm mz-scene-pad-btn" title="Retroceder" aria-label="Retroceder" :disabled="!canStepBackward" @click="stepBackward">
+                    ↓
+                </button>
+                <button type="button" class="mz-btn mz-btn--ghost mz-btn--sm mz-scene-pad-btn" title="Girar a la derecha" aria-label="Girar a la derecha" @click="turn(1)">
+                    ↻
+                </button>
+            </div>
 
             <p v-if="hoveredRoom" class="mz-scene-hover">
                 {{ KIND_LABELS[hoveredRoom.kind] ?? 'Sala' }}
