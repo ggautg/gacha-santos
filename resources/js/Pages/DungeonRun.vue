@@ -27,6 +27,31 @@ const moveEndpoint = computed(() => `/mazmorras/${props.dungeon.key}/mover`);
 const stepEndpoint = computed(() => `/mazmorras/${props.dungeon.key}/paso`);
 const teamEndpoint = computed(() => `/mazmorras/${props.dungeon.key}/equipo`);
 
+// Static lookup tables: one entry per room kind instead of several switch statements.
+const NODE_META = {
+    camp: { label: 'Campamento', glyph: '✦', status: 'Campamento seguro' },
+    altar: { label: 'Altar', glyph: '✚', status: 'Altar de la Virgen' },
+    trap: { label: 'Trampa', glyph: '⚠', status: 'Trampa en el camino' },
+    treasure: { label: 'Tesoro', glyph: '◆', status: 'Arca de limosnas' },
+    gospel: { label: 'Fragmento', glyph: '✞', status: 'Página de los Evangelios' },
+    boss: { label: 'Jefe', glyph: '☠', status: 'El jefe aguarda' },
+    battle: { label: 'Combate', glyph: '⚔', status: 'Criaturas al acecho' },
+};
+
+const DEFAULT_NODE_META = { label: 'Sala', glyph: '⚔', status: 'Sala' };
+
+const KIND_HINTS = {
+    camp: 'Descansa y ajusta tu equipo. Desde aquí puedes seguir explorando.',
+    altar: 'La Virgen ofrece curación o una bendición para el próximo combate.',
+    trap: 'Puedes cruzar y encajar el daño, o sortearla pagando Puntos de Fe.',
+    treasure: 'Abre el arca para recoger los Puntos de Fe que guarda.',
+    gospel: 'Lee el fragmento: recibes Puntos de Fe y una bendición para la próxima batalla.',
+};
+
+const nodeMeta = (kind) => NODE_META[kind] ?? DEFAULT_NODE_META;
+const nodeLabel = (kind) => nodeMeta(kind).label;
+const nodeGlyph = (kind) => nodeMeta(kind).glyph;
+
 const team = ref([...props.teamIds]);
 const savedTeam = ref([...props.teamIds]);
 const current = ref({ ...props.encounter });
@@ -87,7 +112,7 @@ function setView(mode) {
     try {
         window.localStorage.setItem('sanctorum:dungeon-view', mode);
     } catch (error) {
-        // Sin almacenamiento: la preferencia vive solo en esta visita.
+        // No storage available: the preference only lives for this visit.
     }
 
     play('click');
@@ -228,52 +253,19 @@ const statusText = computed(() => {
         return 'La oscuridad te ha vencido';
     }
 
-    switch (current.value.kind) {
-        case 'camp':
-            return 'Campamento seguro';
-        case 'altar':
-            return 'Altar de la Virgen';
-        case 'trap':
-            return 'Trampa en el camino';
-        case 'treasure':
-            return 'Arca de limosnas';
-        case 'gospel':
-            return 'Página de los Evangelios';
-        case 'boss':
-            return 'El jefe aguarda';
-        case 'battle':
-            return 'Criaturas al acecho';
-        default:
-            return 'Sala';
-    }
+    return nodeMeta(current.value.kind).status;
 });
 
 const mapHint = computed(() => {
-    if (isCamp.value) {
-        return 'Descansa y ajusta tu equipo. Desde aquí puedes seguir explorando.';
+    const hint = KIND_HINTS[current.value.kind];
+
+    if (hint) {
+        return hint;
     }
 
-    if (current.value.kind === 'altar') {
-        return 'La Virgen ofrece curación o una bendición para el próximo combate.';
-    }
-
-    if (current.value.kind === 'trap') {
-        return 'Puedes cruzar y encajar el daño, o sortearla pagando Puntos de Fe.';
-    }
-
-    if (current.value.kind === 'treasure') {
-        return 'Abre el arca para recoger los Puntos de Fe que guarda.';
-    }
-
-    if (current.value.kind === 'gospel') {
-        return 'Lee el fragmento: recibes Puntos de Fe y una bendición para la próxima batalla.';
-    }
-
-    if (!mapState.value.resolved) {
-        return 'Presenta batalla para despejar la sala y poder seguir explorando.';
-    }
-
-    return 'Elige una sala conectada. El jefe se esconde en algún rincón del laberinto.';
+    return mapState.value.resolved
+        ? 'Elige una sala conectada. El jefe se esconde en algún rincón del laberinto.'
+        : 'Presenta batalla para despejar la sala y poder seguir explorando.';
 });
 
 function cellX(x) {
@@ -290,46 +282,6 @@ function roomLabel(room) {
 
 function roomGlyph(room) {
     return room.known ? nodeGlyph(room.kind) : '?';
-}
-
-function nodeLabel(kind) {
-    switch (kind) {
-        case 'camp':
-            return 'Campamento';
-        case 'altar':
-            return 'Altar';
-        case 'trap':
-            return 'Trampa';
-        case 'treasure':
-            return 'Tesoro';
-        case 'gospel':
-            return 'Fragmento';
-        case 'boss':
-            return 'Jefe';
-        case 'battle':
-            return 'Combate';
-        default:
-            return 'Sala';
-    }
-}
-
-function nodeGlyph(kind) {
-    switch (kind) {
-        case 'treasure':
-            return '◆';
-        case 'gospel':
-            return '✞';
-        case 'camp':
-            return '✦';
-        case 'altar':
-            return '✚';
-        case 'trap':
-            return '⚠';
-        case 'boss':
-            return '☠';
-        default:
-            return '⚔';
-    }
 }
 
 function shortName(name) {
@@ -1126,7 +1078,7 @@ const logClass = (entry) => {
                         </div>
                         <div v-if="view === '2d'" class="mz-zoom" role="group" aria-label="Zoom del laberinto">
                             <button type="button" class="mz-btn mz-btn--ghost mz-btn--sm" aria-label="Alejar" :disabled="zoom <= ZOOM_MIN" @click="zoomBy(-0.2)">−</button>
-                            <button type="button" class="mz-btn mz-btn--ghost mz-btn--sm mz-zoom-level" :title="'Restablecer vista'" @click="resetView">
+                            <button type="button" class="mz-btn mz-btn--ghost mz-btn--sm mz-zoom-level" title="Restablecer vista" @click="resetView">
                                 {{ Math.round(zoom * 100) }}%
                             </button>
                             <button type="button" class="mz-btn mz-btn--ghost mz-btn--sm" aria-label="Acercar" :disabled="zoom >= ZOOM_MAX" @click="zoomBy(0.2)">+</button>
@@ -1156,53 +1108,53 @@ const logClass = (entry) => {
                     @pointerup="onDragEnd"
                     @pointercancel="onDragEnd"
                 >
-                <div class="mz-board" :class="{ 'is-dragging': drag.active }" :style="boardStyle">
-                    <svg class="mz-links" :viewBox="`0 0 ${mapState.width} ${mapState.height}`" preserveAspectRatio="none" aria-hidden="true">
-                        <line
-                            v-for="(segment, index) in corridors"
-                            :key="index"
-                            :class="{ 'is-fog': segment.fog }"
-                            :x1="segment.x1"
-                            :y1="segment.y1"
-                            :x2="segment.x2"
-                            :y2="segment.y2"
-                        />
-                    </svg>
+                    <div class="mz-board" :class="{ 'is-dragging': drag.active }" :style="boardStyle">
+                        <svg class="mz-links" :viewBox="`0 0 ${mapState.width} ${mapState.height}`" preserveAspectRatio="none" aria-hidden="true">
+                            <line
+                                v-for="(segment, index) in corridors"
+                                :key="index"
+                                :class="{ 'is-fog': segment.fog }"
+                                :x1="segment.x1"
+                                :y1="segment.y1"
+                                :x2="segment.x2"
+                                :y2="segment.y2"
+                            />
+                        </svg>
 
-                    <button
-                        v-for="room in mapRooms"
-                        :key="room.id"
-                        type="button"
-                        class="mz-node"
-                        :class="{
-                            'is-current': room.current,
-                            'is-cleared': room.cleared,
-                            'is-fog': !room.known,
-                            'is-reachable': room.reachable,
-                            [`is-${room.kind}`]: room.known,
-                        }"
-                        :style="{ left: `${cellX(room.x)}%`, top: `${cellY(room.y)}%` }"
-                        :disabled="!room.reachable || !canChoose"
-                        :aria-label="`${roomLabel(room)}`"
-                        :title="roomLabel(room)"
-                        @click="moveTo(room)"
-                    >
-                        <span class="mz-node-glyph" aria-hidden="true">{{ roomGlyph(room) }}</span>
-                        <span v-if="room.reachable" class="mz-node-tag">Ir</span>
-                    </button>
+                        <button
+                            v-for="room in mapRooms"
+                            :key="room.id"
+                            type="button"
+                            class="mz-node"
+                            :class="{
+                                'is-current': room.current,
+                                'is-cleared': room.cleared,
+                                'is-fog': !room.known,
+                                'is-reachable': room.reachable,
+                                [`is-${room.kind}`]: room.known,
+                            }"
+                            :style="{ left: `${cellX(room.x)}%`, top: `${cellY(room.y)}%` }"
+                            :disabled="!room.reachable || !canChoose"
+                            :aria-label="roomLabel(room)"
+                            :title="roomLabel(room)"
+                            @click="moveTo(room)"
+                        >
+                            <span class="mz-node-glyph" aria-hidden="true">{{ roomGlyph(room) }}</span>
+                            <span v-if="room.reachable" class="mz-node-tag">Ir</span>
+                        </button>
 
-                    <div
-                        class="mz-party"
-                        :class="{ 'is-walking': walking }"
-                        :style="{ left: `${walkerX}%`, top: `${walkerY}%` }"
-                        aria-hidden="true"
-                    >
-                        <span v-for="card in teamCards" :key="card.id" class="mz-walker">
-                            <img :src="card.art" :alt="card.name" draggable="false" />
-                        </span>
-                        <span v-if="teamCards.length === 0" class="mz-walker mz-walker--empty">+</span>
+                        <div
+                            class="mz-party"
+                            :class="{ 'is-walking': walking }"
+                            :style="{ left: `${walkerX}%`, top: `${walkerY}%` }"
+                            aria-hidden="true"
+                        >
+                            <span v-for="card in teamCards" :key="card.id" class="mz-walker">
+                                <img :src="card.art" :alt="card.name" draggable="false" />
+                            </span>
+                            <span v-if="teamCards.length === 0" class="mz-walker mz-walker--empty">+</span>
+                        </div>
                     </div>
-                </div>
                 </div>
 
                 <footer class="mz-map-foot">
@@ -1234,114 +1186,92 @@ const logClass = (entry) => {
             </section>
 
             <aside class="mz-side">
-                <template v-if="battleVisible">
-        <section v-if="battleVisible" class="mz-panel mz-battle">
-            <header class="mz-panel-head">
-                <h2 class="mz-panel-title">Combate</h2>
-                <span class="mz-panel-note">{{ statusText }}</span>
-                <button v-if="phase === 'running'" type="button" class="mz-btn mz-btn--ghost mz-btn--sm" @click="skipAnimation">
-                    Saltar
-                </button>
-            </header>
-
-            <div class="mz-arena">
-                <div class="mz-arena-vs" aria-hidden="true">VS</div>
-
-                <div class="mz-field">
-                    <div class="mz-side-units">
-                        <div v-for="unit in allies" :key="unit.id" class="mz-fighter" :class="fighterClass(unit)">
-                            <span
-                                v-if="floatFor(unit.id)"
-                                :key="floatFor(unit.id).key"
-                                class="mz-float"
-                                :class="{ 'is-heal': floatFor(unit.id).type === 'heal', 'is-shield': floatFor(unit.id).type === 'shield', 'is-crit': floatFor(unit.id).type === 'crit' }"
-                            >
-                                {{ floatFor(unit.id).text }}
-                            </span>
-                            <img :src="unit.sprite" :alt="unit.name" draggable="false" />
-                            <span class="mz-fighter-name">{{ unit.short }}</span>
-                            <span class="mz-fighter-lv">Nv. {{ unit.level }}</span>
-                            <div class="mz-hp" :class="hpClass(unit)">
-                                <span class="mz-hp-bar" :style="{ width: `${hpPercent(unit)}%` }"></span>
-                                <span v-if="shields[unit.id]" class="mz-shield" :style="{ width: `${shieldPercent(unit)}%` }"></span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="mz-side-units mz-side-units--foe" :class="{ 'is-crowded': foes.length > 2 }">
-                        <div
-                            v-for="(unit, index) in foes"
-                            :key="unit.id"
-                            class="mz-fighter mz-fighter--foe"
-                            :class="fighterClass(unit)"
-                        >
-                            <span
-                                v-if="floatFor(unit.id)"
-                                :key="floatFor(unit.id).key"
-                                class="mz-float"
-                                :class="{ 'is-heal': floatFor(unit.id).type === 'heal', 'is-shield': floatFor(unit.id).type === 'shield', 'is-crit': floatFor(unit.id).type === 'crit' }"
-                            >
-                                {{ floatFor(unit.id).text }}
-                            </span>
-                            <img :src="unit.sprite" :alt="unit.name" draggable="false" />
-                            <span class="mz-fighter-name">{{ unit.short }}</span>
-                            <span class="mz-fighter-lv">{{ isBoss && index === 0 ? 'Jefe' : `Nv. ${unit.level}` }}</span>
-                            <div class="mz-hp" :class="hpClass(unit)">
-                                <span class="mz-hp-bar" :style="{ width: `${hpPercent(unit)}%` }"></span>
-                                <span v-if="shields[unit.id]" class="mz-shield" :style="{ width: `${shieldPercent(unit)}%` }"></span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div v-if="phase === 'done' && result" class="mz-result" :class="{ 'is-lose': result.result !== 'win' }">
-                <div class="mz-result-copy">
-                    <strong>{{ result.result === 'win' ? '¡Victoria!' : 'Derrota' }}</strong>
-                    <span>Piso {{ result.floor }} · {{ result.stage_name }}</span>
-                </div>
-
-                <div class="mz-result-rewards">
-                    <span>Fe <strong>+{{ result.rewards.grace }}</strong></span>
-                    <span>XP <strong>+{{ result.rewards.xp }}</strong></span>
-                    <span v-if="result.levels?.length" class="mz-levels">
-                        Suben: {{ result.levels.map((level) => level.name).join(', ') }}
-                    </span>
-                </div>
-
-                <div class="mz-actions">
-                    <button v-if="result.result !== 'win'" type="button" class="mz-btn mz-btn--ghost mz-btn--sm" @click="retry">
-                        Reintentar
-                    </button>
-                    <button v-else type="button" class="mz-btn mz-btn--sm" @click="dismissResult">
-                        Continuar
-                    </button>
-                </div>
-            </div>
-
-        </section>
-                <section class="mz-panel mz-combat-log">
+                <section v-if="battleVisible" class="mz-panel mz-battle">
                     <header class="mz-panel-head">
-                        <h2 class="mz-panel-title">Crónica del combate</h2>
+                        <h2 class="mz-panel-title">Combate</h2>
+                        <span class="mz-panel-note">{{ statusText }}</span>
+                        <button v-if="phase === 'running'" type="button" class="mz-btn mz-btn--ghost mz-btn--sm" @click="skipAnimation">
+                            Saltar
+                        </button>
                     </header>
-                    <div class="mz-panel-body">
-                    <div ref="logBox" class="mz-log" aria-live="polite">
-                        <p v-if="logEntries.length === 0" class="mz-note">La crónica aparecerá al presentar batalla.</p>
-                        <div
-                            v-for="entry in logEntries"
-                            :key="entry.key"
-                            class="mz-log-entry"
-                            :class="logClass(entry)"
-                        >
-                            <span v-if="entry.turn" class="mz-log-turn">{{ entry.turn }}</span>
-                            <span>{{ entry.text }}</span>
+
+                    <div class="mz-arena">
+                        <div class="mz-arena-vs" aria-hidden="true">VS</div>
+
+                        <div class="mz-field">
+                            <div class="mz-side-units">
+                                <div v-for="unit in allies" :key="unit.id" class="mz-fighter" :class="fighterClass(unit)">
+                                    <span
+                                        v-if="floatFor(unit.id)"
+                                        :key="floatFor(unit.id).key"
+                                        class="mz-float"
+                                        :class="{ 'is-heal': floatFor(unit.id).type === 'heal', 'is-shield': floatFor(unit.id).type === 'shield', 'is-crit': floatFor(unit.id).type === 'crit' }"
+                                    >
+                                        {{ floatFor(unit.id).text }}
+                                    </span>
+                                    <img :src="unit.sprite" :alt="unit.name" draggable="false" />
+                                    <span class="mz-fighter-name">{{ unit.short }}</span>
+                                    <span class="mz-fighter-lv">Nv. {{ unit.level }}</span>
+                                    <div class="mz-hp" :class="hpClass(unit)">
+                                        <span class="mz-hp-bar" :style="{ width: `${hpPercent(unit)}%` }"></span>
+                                        <span v-if="shields[unit.id]" class="mz-shield" :style="{ width: `${shieldPercent(unit)}%` }"></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mz-side-units mz-side-units--foe" :class="{ 'is-crowded': foes.length > 2 }">
+                                <div
+                                    v-for="(unit, index) in foes"
+                                    :key="unit.id"
+                                    class="mz-fighter mz-fighter--foe"
+                                    :class="fighterClass(unit)"
+                                >
+                                    <span
+                                        v-if="floatFor(unit.id)"
+                                        :key="floatFor(unit.id).key"
+                                        class="mz-float"
+                                        :class="{ 'is-heal': floatFor(unit.id).type === 'heal', 'is-shield': floatFor(unit.id).type === 'shield', 'is-crit': floatFor(unit.id).type === 'crit' }"
+                                    >
+                                        {{ floatFor(unit.id).text }}
+                                    </span>
+                                    <img :src="unit.sprite" :alt="unit.name" draggable="false" />
+                                    <span class="mz-fighter-name">{{ unit.short }}</span>
+                                    <span class="mz-fighter-lv">{{ isBoss && index === 0 ? 'Jefe' : `Nv. ${unit.level}` }}</span>
+                                    <div class="mz-hp" :class="hpClass(unit)">
+                                        <span class="mz-hp-bar" :style="{ width: `${hpPercent(unit)}%` }"></span>
+                                        <span v-if="shields[unit.id]" class="mz-shield" :style="{ width: `${shieldPercent(unit)}%` }"></span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
+
+                    <div v-if="phase === 'done' && result" class="mz-result" :class="{ 'is-lose': result.result !== 'win' }">
+                        <div class="mz-result-copy">
+                            <strong>{{ result.result === 'win' ? '¡Victoria!' : 'Derrota' }}</strong>
+                            <span>Piso {{ result.floor }} · {{ result.stage_name }}</span>
+                        </div>
+
+                        <div class="mz-result-rewards">
+                            <span>Fe <strong>+{{ result.rewards.grace }}</strong></span>
+                            <span>XP <strong>+{{ result.rewards.xp }}</strong></span>
+                            <span v-if="result.levels?.length" class="mz-levels">
+                                Suben: {{ result.levels.map((level) => level.name).join(', ') }}
+                            </span>
+                        </div>
+
+                        <div class="mz-actions">
+                            <button v-if="result.result !== 'win'" type="button" class="mz-btn mz-btn--ghost mz-btn--sm" @click="retry">
+                                Reintentar
+                            </button>
+                            <button v-else type="button" class="mz-btn mz-btn--sm" @click="dismissResult">
+                                Continuar
+                            </button>
+                        </div>
                     </div>
                 </section>
-                </template>
-                <template v-else>
-                <section class="mz-panel mz-encounter">
+
+                <section v-else class="mz-panel mz-encounter">
                     <header class="mz-panel-head">
                         <h2 class="mz-panel-title">Encuentro</h2>
                         <span class="mz-panel-note">{{ nodeLabel(current.kind) }} · {{ clearedCount }}/{{ mapRooms.length }} salas</span>
@@ -1456,26 +1386,27 @@ const logClass = (entry) => {
                         <p v-else-if="isCamp && teamDirty" class="mz-note">Tienes cambios sin guardar en el equipo.</p>
                     </div>
                 </section>
+
+                <!-- Single combat log: always mounted, so logBox is one element and keeps its scroll. -->
                 <section class="mz-panel mz-combat-log">
                     <header class="mz-panel-head">
                         <h2 class="mz-panel-title">Crónica del combate</h2>
                     </header>
                     <div class="mz-panel-body">
-                    <div ref="logBox" class="mz-log" aria-live="polite">
-                        <p v-if="logEntries.length === 0" class="mz-note">La crónica aparecerá al presentar batalla.</p>
-                        <div
-                            v-for="entry in logEntries"
-                            :key="entry.key"
-                            class="mz-log-entry"
-                            :class="logClass(entry)"
-                        >
-                            <span v-if="entry.turn" class="mz-log-turn">{{ entry.turn }}</span>
-                            <span>{{ entry.text }}</span>
+                        <div ref="logBox" class="mz-log" aria-live="polite">
+                            <p v-if="logEntries.length === 0" class="mz-note">La crónica aparecerá al presentar batalla.</p>
+                            <div
+                                v-for="entry in logEntries"
+                                :key="entry.key"
+                                class="mz-log-entry"
+                                :class="logClass(entry)"
+                            >
+                                <span v-if="entry.turn" class="mz-log-turn">{{ entry.turn }}</span>
+                                <span>{{ entry.text }}</span>
+                            </div>
                         </div>
                     </div>
-                    </div>
                 </section>
-                </template>
             </aside>
         </div>
 
@@ -1508,97 +1439,96 @@ const logClass = (entry) => {
                 </div>
             </header>
 
-        <div v-show="journalTab === 'equipo'" ref="rosterPanel" class="mz-journal-body mz-team-pane">
-
-                    <div class="mz-panel-body">
-                        <div class="mz-slots">
-                            <div
-                                v-for="(slot, index) in slots"
-                                :key="index"
-                                class="mz-slot"
-                                :class="{ 'is-filled': slot }"
-                                :style="slot ? { '--rarity': slot.rarity_color } : {}"
-                                :role="slot ? undefined : 'button'"
-                                :tabindex="slot ? undefined : 0"
-                                @click="!slot && focusRoster()"
-                                @keydown.enter="!slot && focusRoster()"
-                            >
-                                <template v-if="slot">
-                                    <button
-                                        v-if="canEditTeam"
-                                        type="button"
-                                        class="mz-slot-remove"
-                                        :aria-label="`Quitar a ${slot.name}`"
-                                        @click.stop="toggle(slot)"
-                                    >
-                                        ✕
-                                    </button>
-                                    <img :src="slot.art" :alt="slot.name" draggable="false" />
-                                    <span class="mz-slot-name">{{ shortName(slot.name) }}</span>
-                                    <span class="mz-slot-vitals" :class="vitalClass(slot)">
-                                        <span class="mz-slot-bar">
-                                            <span :style="{ width: `${vitalPercent(slot)}%` }"></span>
-                                        </span>
-                                        <span class="mz-slot-text">{{ vitalFor(slot.id).hp }} / {{ vitalFor(slot.id).max }}</span>
-                                    </span>
-                                </template>
-                                <template v-else>
-                                    <span class="mz-slot-empty">
-                                        <span class="mz-plus" aria-hidden="true">+</span>
-                                        Añadir
-                                    </span>
-                                </template>
-                            </div>
-                        </div>
-
-                        <div class="mz-team-foot">
-                            <span class="mz-power"><strong>{{ localPower }}</strong> poder</span>
-                            <span v-if="blessing > 0" class="mz-blessing">+{{ blessing }}% ataque</span>
-                            <button
-                                v-if="canEditTeam"
-                                type="button"
-                                class="mz-btn mz-btn--ghost mz-btn--sm"
-                                :disabled="phase === 'running'"
-                                @click="rosterOpen = !rosterOpen"
-                            >
-                                {{ rosterOpen ? 'Cerrar' : 'Cambiar' }}
-                            </button>
-                            <span v-else class="mz-lock">Equipo fijado</span>
-                        </div>
-
-                        <button
-                            v-if="canEditTeam && teamDirty"
-                            type="button"
-                            class="mz-btn mz-btn--block"
-                            :disabled="teamSaving"
-                            @click="saveTeam(false)"
+            <div v-show="journalTab === 'equipo'" ref="rosterPanel" class="mz-journal-body mz-team-pane">
+                <div class="mz-panel-body">
+                    <div class="mz-slots">
+                        <div
+                            v-for="(slot, index) in slots"
+                            :key="index"
+                            class="mz-slot"
+                            :class="{ 'is-filled': slot }"
+                            :style="slot ? { '--rarity': slot.rarity_color } : {}"
+                            :role="slot ? undefined : 'button'"
+                            :tabindex="slot ? undefined : 0"
+                            @click="!slot && focusRoster()"
+                            @keydown.enter="!slot && focusRoster()"
                         >
-                            {{ teamSaving ? 'Guardando…' : 'Guardar equipo' }}
-                        </button>
-
-                        <div v-if="rosterOpen && canEditTeam" class="mz-roster">
-                            <SaintCard
-                                v-for="saint in roster"
-                                :key="saint.id"
-                                :saint="saint"
-                                :selected="team.includes(saint.id)"
-                                :interactive="canEditTeam"
-                                @select="toggle"
-                            />
+                            <template v-if="slot">
+                                <button
+                                    v-if="canEditTeam"
+                                    type="button"
+                                    class="mz-slot-remove"
+                                    :aria-label="`Quitar a ${slot.name}`"
+                                    @click.stop="toggle(slot)"
+                                >
+                                    ✕
+                                </button>
+                                <img :src="slot.art" :alt="slot.name" draggable="false" />
+                                <span class="mz-slot-name">{{ shortName(slot.name) }}</span>
+                                <span class="mz-slot-vitals" :class="vitalClass(slot)">
+                                    <span class="mz-slot-bar">
+                                        <span :style="{ width: `${vitalPercent(slot)}%` }"></span>
+                                    </span>
+                                    <span class="mz-slot-text">{{ vitalFor(slot.id).hp }} / {{ vitalFor(slot.id).max }}</span>
+                                </span>
+                            </template>
+                            <template v-else>
+                                <span class="mz-slot-empty">
+                                    <span class="mz-plus" aria-hidden="true">+</span>
+                                    Añadir
+                                </span>
+                            </template>
                         </div>
-
-                        <p v-if="!canEditTeam" class="mz-note">Solo puedes cambiar el equipo al detenerte en un campamento.</p>
-
-                        <div v-if="!roster.length" class="mz-empty">
-                            <strong>Tu santoral está vacío</strong>
-                            <Link href="/" class="mz-btn mz-btn--sm" @click="play('click')">Ir al santuario</Link>
-                        </div>
-
-                        <button type="button" class="mz-rift" :disabled="phase === 'running'" @click="restartRun">
-                            Reiniciar el descenso
-                        </button>
                     </div>
-        </div>
+
+                    <div class="mz-team-foot">
+                        <span class="mz-power"><strong>{{ localPower }}</strong> poder</span>
+                        <span v-if="blessing > 0" class="mz-blessing">+{{ blessing }}% ataque</span>
+                        <button
+                            v-if="canEditTeam"
+                            type="button"
+                            class="mz-btn mz-btn--ghost mz-btn--sm"
+                            :disabled="phase === 'running'"
+                            @click="rosterOpen = !rosterOpen"
+                        >
+                            {{ rosterOpen ? 'Cerrar' : 'Cambiar' }}
+                        </button>
+                        <span v-else class="mz-lock">Equipo fijado</span>
+                    </div>
+
+                    <button
+                        v-if="canEditTeam && teamDirty"
+                        type="button"
+                        class="mz-btn mz-btn--block"
+                        :disabled="teamSaving"
+                        @click="saveTeam(false)"
+                    >
+                        {{ teamSaving ? 'Guardando…' : 'Guardar equipo' }}
+                    </button>
+
+                    <div v-if="rosterOpen && canEditTeam" class="mz-roster">
+                        <SaintCard
+                            v-for="saint in roster"
+                            :key="saint.id"
+                            :saint="saint"
+                            :selected="team.includes(saint.id)"
+                            :interactive="canEditTeam"
+                            @select="toggle"
+                        />
+                    </div>
+
+                    <p v-if="!canEditTeam" class="mz-note">Solo puedes cambiar el equipo al detenerte en un campamento.</p>
+
+                    <div v-if="!roster.length" class="mz-empty">
+                        <strong>Tu santoral está vacío</strong>
+                        <Link href="/" class="mz-btn mz-btn--sm" @click="play('click')">Ir al santuario</Link>
+                    </div>
+
+                    <button type="button" class="mz-rift" :disabled="phase === 'running'" @click="restartRun">
+                        Reiniciar el descenso
+                    </button>
+                </div>
+            </div>
 
             <div v-show="journalTab === 'cronicas'" class="mz-journal-body mz-history-body">
                 <p v-if="history.length === 0" class="mz-note">Aún no has descendido. Tus batallas aparecerán aquí.</p>
@@ -1611,6 +1541,5 @@ const logClass = (entry) => {
                 </div>
             </div>
         </section>
-
     </div>
 </template>
