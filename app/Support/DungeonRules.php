@@ -59,11 +59,6 @@ final class DungeonRules
         return $dungeon;
     }
 
-    public static function exists(string $key): bool
-    {
-        return isset(self::all()[$key]);
-    }
-
     /**
      * Semilla del descenso activo. Se crea la primera vez que se entra.
      */
@@ -919,14 +914,6 @@ final class DungeonRules
             ->count();
     }
 
-    public static function floorCleared(Player $player, string $key, int $floor): bool
-    {
-        return DungeonProgress::where('player_id', $player->id)
-            ->where('dungeon', $key)
-            ->where('stage', $floor)
-            ->exists();
-    }
-
     /**
      * Marca un piso como limpiado y avanza el descenso si corresponde.
      */
@@ -1265,7 +1252,7 @@ final class DungeonRules
 
             return [
                 'type' => 'avoid',
-                'text' => $node['name'].': rodeas el peligro y gastas '.$cost.' Puntos de Fe.',
+                'text' => $node['name'].': sorteas el peligro y gastas '.$cost.' Puntos de Fe.',
                 'amount' => $cost,
             ];
         }

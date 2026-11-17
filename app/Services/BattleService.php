@@ -505,7 +505,7 @@ class BattleService
                 }
                 $log[] = [
                     't' => 'buff', 'actor' => $actorId,
-                    'text' => 'El equipo de '.$actor['short'].' arde de fervor (+'.($actor['skillPower']).'% ataque).',
+                    'text' => 'El equipo de '.$actor['short'].' arde de fervor (+'.($actor['skillPower']).'% de ataque).',
                 ];
                 break;
 
@@ -664,8 +664,6 @@ class BattleService
 
     private function shortName(string $name): string
     {
-        $name = preg_replace('/^(San|Santa|Santo|Beato|Beata)\s+/u', '', $name);
-
-        return $name ?: $name;
+        return preg_replace('/^(San|Santa|Santo|Beato|Beata)\s+/u', '', $name) ?: $name;
     }
 }

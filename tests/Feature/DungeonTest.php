@@ -167,6 +167,7 @@ class DungeonTest extends TestCase
 
         $this->postJson('/mazmorras/pecados/mover', ['room' => $layout['boss']])
             ->assertStatus(422)
+            ->assertJsonPath('message', 'No se pudo completar la acción. Revisa los datos e inténtalo de nuevo.')
             ->assertJsonPath('errors.room.0', 'Esa sala no está conectada con tu posición.');
 
         $this->postJson('/mazmorras/pecados/mover', ['room' => $room])
@@ -223,6 +224,7 @@ class DungeonTest extends TestCase
 
         $this->postJson('/mazmorras/pecados/batalla')
             ->assertStatus(422)
+            ->assertJsonPath('message', 'No se pudo completar la acción. Revisa los datos e inténtalo de nuevo.')
             ->assertJsonPath('errors.battle.0', 'Esta sala ya está resuelta.');
 
         $this->assertSame($first->json('player.grace'), $player->fresh()->grace);

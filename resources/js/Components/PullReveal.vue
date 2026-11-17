@@ -1,6 +1,7 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, ref } from 'vue';
 import SaintCard from './SaintCard.vue';
+import { useDialogFocus } from '../lib/dialog';
 
 const props = defineProps({
     cards: { type: Array, required: true },
@@ -26,7 +27,7 @@ const glow = computed(() => glowByRarity[best.value] ?? glowByRarity[1]);
 
 const title = computed(() => {
     if (best.value === 5) {
-        return '¡MILAGRO! UN SANTO DE CINCO ESTRELLAS';
+        return '¡MILAGROSO! UN SANTO DE CINCO ESTRELLAS';
     }
 
     if (best.value === 4) {
@@ -42,61 +43,12 @@ const title = computed(() => {
 
 const close = () => emit('close');
 
-let previousFocus = null;
-
-function focusables() {
-    return Array.from(
-        dialog.value?.querySelectorAll('button, [href], input, [tabindex]:not([tabindex="-1"])') ?? [],
-    );
-}
-
-const onKeydown = (event) => {
-    if (event.key === 'Escape') {
-        close();
-
-        return;
-    }
-
-    if (event.key !== 'Tab') {
-        return;
-    }
-
-    const items = focusables();
-
-    if (!items.length) {
-        return;
-    }
-
-    const first = items[0];
-    const last = items[items.length - 1];
-
-    if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-    } else if (! event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-    }
-};
-
-onMounted(async () => {
-    previousFocus = document.activeElement;
-    document.body.style.overflow = 'hidden';
-    window.addEventListener('keydown', onKeydown);
-    await nextTick();
-    closeButton.value?.focus();
-});
-
-onBeforeUnmount(() => {
-    document.body.style.overflow = '';
-    window.removeEventListener('keydown', onKeydown);
-    previousFocus?.focus?.();
-});
+useDialogFocus(dialog, closeButton, close);
 </script>
 
 <template>
     <Teleport to="body">
-        <div ref="dialog" class="reveal" :style="{ '--reveal-glow': glow }" role="dialog" aria-modal="true" aria-label="Resultado de la oración">
+        <div ref="dialog" class="reveal" :style="{ '--reveal-glow': glow }" role="dialog" aria-modal="true" aria-label="Resultado de la oración" @click.self="close">
             <div class="reveal-burst" aria-hidden="true"></div>
 
             <h2 class="reveal-title">{{ title }}</h2>

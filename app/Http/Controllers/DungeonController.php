@@ -9,6 +9,7 @@ use App\Services\BattleService;
 use App\Support\CardPresenter;
 use App\Support\DungeonRules;
 use App\Support\ValidationMessages;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -144,10 +145,7 @@ class DungeonController extends Controller
         try {
             $result = $battles->fightDungeon($player, $dungeon);
         } catch (ValidationException $exception) {
-            return response()->json([
-                'message' => 'No se pudo completar la acción. Revisa los datos e inténtalo de nuevo.',
-                'errors' => $exception->errors(),
-            ], 422);
+            return $this->validationError($exception);
         }
 
         return response()->json($result);
@@ -173,10 +171,7 @@ class DungeonController extends Controller
         try {
             $run = DungeonRules::moveTo($player, $dungeon, (int) $data['room']);
         } catch (ValidationException $exception) {
-            return response()->json([
-                'message' => 'No se pudo completar la acción. Revisa los datos e inténtalo de nuevo.',
-                'errors' => $exception->errors(),
-            ], 422);
+            return $this->validationError($exception);
         }
 
         $state = DungeonRules::state($player, $dungeon, $run);
@@ -220,10 +215,7 @@ class DungeonController extends Controller
                 $data['team'] ?? null,
             );
         } catch (ValidationException $exception) {
-            return response()->json([
-                'message' => 'No se pudo completar la acción. Revisa los datos e inténtalo de nuevo.',
-                'errors' => $exception->errors(),
-            ], 422);
+            return $this->validationError($exception);
         }
 
         return response()->json([
@@ -247,10 +239,7 @@ class DungeonController extends Controller
         try {
             $run = DungeonRules::setTeam($player, $dungeon, $data['team']);
         } catch (ValidationException $exception) {
-            return response()->json([
-                'message' => 'No se pudo completar la acción. Revisa los datos e inténtalo de nuevo.',
-                'errors' => $exception->errors(),
-            ], 422);
+            return $this->validationError($exception);
         }
 
         $state = DungeonRules::state($player, $dungeon, $run);
@@ -280,5 +269,13 @@ class DungeonController extends Controller
         return redirect()
             ->route('dungeons.show', $dungeon)
             ->with('success', 'Has descendido por una grieta nueva: el elenco de esta mazmorra ha cambiado.');
+    }
+
+    private function validationError(ValidationException $exception): JsonResponse
+    {
+        return response()->json([
+            'message' => 'No se pudo completar la acción. Revisa los datos e inténtalo de nuevo.',
+            'errors' => $exception->errors(),
+        ], 422);
     }
 }

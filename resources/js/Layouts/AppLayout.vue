@@ -1,7 +1,9 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
+import ConfirmDialog from '../Components/ConfirmDialog.vue';
 import ThemePicker from '../Components/ThemePicker.vue';
+import { useDismissable } from '../lib/dialog';
 import ToastStack from '../Components/ToastStack.vue';
 import {
     formatNumber,
@@ -15,7 +17,7 @@ const page = usePage();
 const player = usePlayer();
 
 const nav = [
-    { href: '/', label: 'Inicio' },
+    { href: '/', label: 'Santuario' },
     { href: '/orar', label: 'Orar' },
     { href: '/coleccion', label: 'Colección' },
     { href: '/equipo', label: 'Equipo' },
@@ -50,27 +52,7 @@ watch(
     { deep: true },
 );
 
-function onDocumentClick(event) {
-    if (profileOpen.value && profileMenu.value && !profileMenu.value.contains(event.target)) {
-        profileOpen.value = false;
-    }
-}
-
-function onDocumentKey(event) {
-    if (event.key === 'Escape') {
-        profileOpen.value = false;
-    }
-}
-
-onMounted(() => {
-    document.addEventListener('click', onDocumentClick);
-    document.addEventListener('keydown', onDocumentKey);
-});
-
-onBeforeUnmount(() => {
-    document.removeEventListener('click', onDocumentClick);
-    document.removeEventListener('keydown', onDocumentKey);
-});
+useDismissable(profileOpen, profileMenu);
 
 const onNav = () => {
     play('click');
@@ -84,15 +66,18 @@ function toggleProfile() {
 
 function toggleSound() {
     toggleMuted();
-    play('click');
 }
 
-function resetAccount() {
-    if (!window.confirm('¿Reiniciar toda la cuenta? Se borran santos, Puntos de Fe, descensos y récords.')) {
-        return;
-    }
+const resetMessage = '¿Reiniciar toda la cuenta? Se borran santos, Puntos de Fe, descensos y récords.';
+const confirmReset = ref(false);
 
+function resetAccount() {
     profileOpen.value = false;
+    confirmReset.value = true;
+}
+
+function confirmResetAccount() {
+    confirmReset.value = false;
     play('click');
     router.post('/desarrollo/reiniciar-cuenta');
 }
@@ -216,5 +201,11 @@ function resetAccount() {
         </div>
 
         <ToastStack />
+        <ConfirmDialog
+            v-if="confirmReset"
+            :message="resetMessage"
+            @confirm="confirmResetAccount"
+            @cancel="confirmReset = false"
+        />
     </div>
 </template>

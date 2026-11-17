@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import PullReveal from '../Components/PullReveal.vue';
-import { post } from '../lib/api';
+import { post, reportError } from '../lib/api';
 import {
     formatNumber,
     patchPlayer,
@@ -56,8 +56,7 @@ async function summon(count) {
             toast.success('El santoral crece: tu oración ha revelado nuevos santos.');
         }
     } catch (error) {
-        play('error');
-        toast.error(error.firstError?.() ?? error.message);
+        reportError(error);
     } finally {
         loading.value = null;
     }
@@ -140,7 +139,7 @@ function closeReveal() {
                 <span :style="{ width: `${pityPercent}%` }"></span>
             </div>
             <p class="orar-pity-note">
-                <template v-if="pityLeft === 0">La próxima oración será Milagrosa.</template>
+                <template v-if="pityLeft === 0">La próxima oración traerá un santo Milagroso.</template>
                 <template v-else>Faltan {{ pityLeft }} oraciones para un 5★ asegurado.</template>
             </p>
         </div>

@@ -6,7 +6,7 @@ const THEME_KEY = 'sanctorum.theme.v2';
 const FONT_KEY = 'sanctorum.font.v2';
 
 export const THEMES = [
-    // accent = --gold, accent2 = --line, ink = --panel
+    // accent, accent2 e ink son los colores base de cada paleta; el resto se deriva en CSS.
     { key: 'pecados', name: 'Pecados', note: 'Rojo sangre y oro', accent: '#f2b84b', accent2: '#8a2f36', ink: '#2a0e15' },
     { key: 'goetia', name: 'Goetia', note: 'Violeta arcano', accent: '#b79cff', accent2: '#5a4ec2', ink: '#18153f' },
     { key: 'catacumbas', name: 'Catacumbas', note: 'Musgo y hueso', accent: '#c9d98c', accent2: '#587a4c', ink: '#192417' },
@@ -27,13 +27,13 @@ export const FONTS = [
     {
         key: 'rubrica',
         name: 'Rúbrica',
-        note: 'Palatino · Trebuchet',
+        note: 'Palatino · Georgia',
         stack: "'Palatino Linotype', 'Book Antiqua', Palatino, Georgia, serif",
     },
     {
         key: 'hueso',
         name: 'Hueso',
-        note: 'Courier · Georgia',
+        note: 'Courier New · Monoespacio',
         stack: "'Courier New', Courier, monospace",
     },
     {
@@ -77,11 +77,12 @@ function findFont(key) {
     return FONTS.find((font) => font.key === key) ?? FONTS.find((font) => font.key === 'clasica');
 }
 
-function syncMeta(theme) {
+function syncMeta() {
     const meta = document.querySelector('meta[name="theme-color"]');
+    const background = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
 
-    if (meta) {
-        meta.setAttribute('content', theme.ink);
+    if (meta && background) {
+        meta.setAttribute('content', background);
     }
 }
 
@@ -110,12 +111,35 @@ export function applyTheme(key, { persist = true, font } = {}) {
         applyFont(font, { persist });
     }
 
-    syncMeta(theme);
+    syncMeta();
 }
 
 export function resetTheme() {
     applyTheme(DEFAULT_THEME);
     applyFont('clasica');
+}
+
+/**
+ * Aplica un tema solo mientras dura la vista y devuelve la forma de restaurar el anterior.
+ * La tipografía elegida por el jugador no se guarda ni se cambia.
+ */
+export function useTemporaryTheme(themeKey) {
+    const theme = currentTheme.value;
+    const font = currentFont.value;
+
+    applyTheme(themeKey, { persist: false, font });
+
+    return () => {
+        // Si el jugador cambió la apariencia mientras la mazmorra estaba abierta,
+        // se respeta esa elección en lugar de restaurar la anterior.
+        if (currentTheme.value !== theme) {
+            applyTheme(currentTheme.value, { persist: false, font: currentFont.value });
+
+            return;
+        }
+
+        applyTheme(theme, { persist: false, font });
+    };
 }
 
 /**

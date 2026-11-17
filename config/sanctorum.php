@@ -7,7 +7,6 @@ return [
     | Moneda y economía
     |--------------------------------------------------------------------------
     */
-    'currency' => 'Puntos de Fe',
     'starting_grace' => 0,
     'pull_cost' => 60,
     'ten_pull_cost' => 540,

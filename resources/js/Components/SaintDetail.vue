@@ -1,7 +1,8 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, ref } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import SaintCard from './SaintCard.vue';
+import { useDialogFocus } from '../lib/dialog';
 import { usePlayer } from '../lib/player';
 
 const props = defineProps({
@@ -58,56 +59,8 @@ const close = () => emit('close');
 
 const dialog = ref(null);
 const closeButton = ref(null);
-let previousFocus = null;
 
-function focusables() {
-    return Array.from(
-        dialog.value?.querySelectorAll('button, [href], input, [tabindex]:not([tabindex="-1"])') ?? [],
-    );
-}
-
-const onKeydown = (event) => {
-    if (event.key === 'Escape') {
-        close();
-
-        return;
-    }
-
-    if (event.key !== 'Tab') {
-        return;
-    }
-
-    const items = focusables();
-
-    if (!items.length) {
-        return;
-    }
-
-    const first = items[0];
-    const last = items[items.length - 1];
-
-    if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-    }
-};
-
-onMounted(async () => {
-    previousFocus = document.activeElement;
-    document.body.style.overflow = 'hidden';
-    window.addEventListener('keydown', onKeydown);
-    await nextTick();
-    closeButton.value?.focus();
-});
-
-onBeforeUnmount(() => {
-    document.body.style.overflow = '';
-    window.removeEventListener('keydown', onKeydown);
-    previousFocus?.focus?.();
-});
+useDialogFocus(dialog, closeButton, close);
 </script>
 
 <template>
@@ -132,7 +85,7 @@ onBeforeUnmount(() => {
                             <p class="quote-block">«Su rostro aguarda en el santuario.»</p>
                             <p class="bio">
                                 Un santo que todavía no se te ha revelado. Ni su nombre, ni su rareza, ni su
-                                historia pueden leerse mientras el velo cubra su retrato.
+                                historia pueden leerse mientras el velo cubre su retrato.
                             </p>
 
                             <div class="mystery-box">

@@ -1,5 +1,6 @@
 <script setup>
 import { Head, Link } from '@inertiajs/vue3';
+import { nodeGlyph, nodeLabel } from '../lib/dungeonNodes';
 import { formatNumber } from '../lib/player';
 import { play } from '../lib/sfx';
 
@@ -8,46 +9,6 @@ defineProps({
     deepest: { type: Number, default: 0 },
     player: { type: Object, required: true },
 });
-
-function nodeGlyph(kind) {
-    switch (kind) {
-        case 'camp':
-            return '✦';
-        case 'altar':
-            return '✚';
-        case 'trap':
-            return '⚠';
-        case 'treasure':
-            return '◆';
-        case 'gospel':
-            return '✞';
-        case 'boss':
-            return '☠';
-        default:
-            return '⚔';
-    }
-}
-
-function nodeLabel(kind) {
-    switch (kind) {
-        case 'camp':
-            return 'Campamento';
-        case 'altar':
-            return 'Altar';
-        case 'trap':
-            return 'Trampa';
-        case 'treasure':
-            return 'Tesoro';
-        case 'gospel':
-            return 'Fragmento';
-        case 'boss':
-            return 'Jefe';
-        case 'battle':
-            return 'Combate';
-        default:
-            return 'Descenso';
-    }
-}
 </script>
 
 <template>
@@ -80,11 +41,10 @@ function nodeLabel(kind) {
                 :key="dungeon.key"
                 class="mz-dungeon"
                 :class="{ 'is-sealed': !dungeon.unlocked }"
-                :data-theme="dungeon.theme"
                 :style="{ '--mz-accent': dungeon.accent, '--mz-accent2': dungeon.accent2 }"
             >
                 <div class="mz-dungeon-banner">
-                    <span class="mz-dungeon-kicker">{{ dungeon.unlocked ? 'Abierta' : 'Sellada' }}</span>
+                    <span class="mz-kicker">{{ dungeon.unlocked ? 'Abierta' : 'Sellada' }}</span>
                     <h2 class="mz-dungeon-name">{{ dungeon.name }}</h2>
                     <p class="mz-dungeon-sub">{{ dungeon.subtitle }}</p>
                     <span v-if="!dungeon.unlocked" class="mz-dungeon-seal" aria-hidden="true">✕</span>
@@ -103,7 +63,7 @@ function nodeLabel(kind) {
                                 <span v-else aria-hidden="true">{{ nodeGlyph(dungeon.next?.kind) }}</span>
                             </span>
                             <div class="mz-dungeon-next-copy">
-                                <span class="mz-kicker">{{ nodeLabel(dungeon.next?.kind) }} · Piso {{ dungeon.next?.floor ?? dungeon.run_floor }}</span>
+                                <span class="mz-kicker">{{ nodeLabel(dungeon.next?.kind, 'Descenso') }} · Piso {{ dungeon.next?.floor ?? dungeon.run_floor }}</span>
                                 <strong>{{ dungeon.next?.name ?? 'La puerta aguarda' }}</strong>
                                 <span class="mz-muted">{{ dungeon.next?.subtitle }}</span>
                             </div>
@@ -132,7 +92,7 @@ function nodeLabel(kind) {
                         class="mz-btn mz-btn--block"
                         @click="play('click')"
                     >
-                        {{ dungeon.cleared > 0 ? 'Volver al campamento' : 'Entrar al descenso' }}
+                        {{ dungeon.cleared > 0 ? 'Reanudar descenso' : 'Entrar al descenso' }}
                     </Link>
                 </div>
             </article>

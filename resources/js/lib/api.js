@@ -1,3 +1,6 @@
+import { play } from './sfx';
+import { toast } from './toast';
+
 export class ApiError extends Error {
     constructor(message, errors = {}, status = 0) {
         super(message);
@@ -53,6 +56,8 @@ export function post(url, data = {}) {
     return request(url, { method: 'POST', data });
 }
 
-export function get(url) {
-    return request(url, { method: 'GET' });
+/** Sonido y aviso en español para cualquier error de API. */
+export function reportError(error) {
+    play('error');
+    toast.error(error.firstError?.() ?? error.message);
 }

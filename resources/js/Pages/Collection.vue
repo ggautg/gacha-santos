@@ -5,14 +5,13 @@ import PageHeader from '../Components/PageHeader.vue';
 import ProgressMeter from '../Components/ProgressMeter.vue';
 import SaintCard from '../Components/SaintCard.vue';
 import SaintDetail from '../Components/SaintDetail.vue';
-import { post } from '../lib/api';
+import { post, reportError } from '../lib/api';
 import { formatNumber, patchPlayer, usePlayer } from '../lib/player';
 import { play } from '../lib/sfx';
 import { toast } from '../lib/toast';
 
 const props = defineProps({
     saints: { type: Array, default: () => [] },
-    player: { type: Object, required: true },
     raritySummary: { type: Array, default: () => [] },
     level: { type: Object, required: true },
 });
@@ -105,8 +104,7 @@ async function levelUp(saint) {
         play('level');
         toast.success(`${saint.name} alcanza el nivel ${result.level} y brilla con más fuerza.`);
     } catch (error) {
-        play('error');
-        toast.error(error.firstError?.() ?? error.message);
+        reportError(error);
     } finally {
         busy.value = false;
     }
@@ -168,11 +166,11 @@ async function levelUp(saint) {
 
     <div class="collection-head">
         <span>
-            Mostrando <strong>{{ filtered.length }}</strong> santos
+            Mostrando <strong>{{ filtered.length }}</strong> {{ filtered.length === 1 ? 'santo' : 'santos' }}
             <template v-if="filtersActive"> · <button type="button" class="section-link" style="background: none; border: 0; cursor: pointer" @click="clearFilters">Limpiar filtros</button></template>
         </span>
         <span v-if="veiledCount && !filtersActive" class="dim">
-            {{ veiledCount }} velados · su identidad permanece oculta
+            {{ veiledCount }} {{ veiledCount === 1 ? 'velado' : 'velados' }} · su identidad permanece oculta
         </span>
         <span v-else-if="store.grace < level.base_cost" class="dim">Gana Puntos de Fe en las mazmorras para iluminar</span>
     </div>

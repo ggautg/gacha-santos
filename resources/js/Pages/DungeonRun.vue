@@ -1,11 +1,14 @@
 <script setup>
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
+import ConfirmDialog from '../Components/ConfirmDialog.vue';
 import SaintCard from '../Components/SaintCard.vue';
-import { post } from '../lib/api';
+import { post, reportError } from '../lib/api';
+import { nodeGlyph, nodeHint, nodeKinds, nodeLabel, nodeStatus } from '../lib/dungeonNodes';
+import { prefersReducedMotion } from '../lib/motion';
 import { patchPlayer } from '../lib/player';
 import { play } from '../lib/sfx';
-import { applyTheme, currentFont, currentTheme } from '../lib/theme';
+import { useTemporaryTheme } from '../lib/theme';
 import { toast } from '../lib/toast';
 
 const DungeonScene = defineAsyncComponent(() => import('../Components/DungeonScene.vue'));
@@ -26,31 +29,6 @@ const battleEndpoint = computed(() => `/mazmorras/${props.dungeon.key}/batalla`)
 const moveEndpoint = computed(() => `/mazmorras/${props.dungeon.key}/mover`);
 const stepEndpoint = computed(() => `/mazmorras/${props.dungeon.key}/paso`);
 const teamEndpoint = computed(() => `/mazmorras/${props.dungeon.key}/equipo`);
-
-// Static lookup tables: one entry per room kind instead of several switch statements.
-const NODE_META = {
-    camp: { label: 'Campamento', glyph: '✦', status: 'Campamento seguro' },
-    altar: { label: 'Altar', glyph: '✚', status: 'Altar de la Virgen' },
-    trap: { label: 'Trampa', glyph: '⚠', status: 'Trampa en el camino' },
-    treasure: { label: 'Tesoro', glyph: '◆', status: 'Arca de limosnas' },
-    gospel: { label: 'Fragmento', glyph: '✞', status: 'Página de los Evangelios' },
-    boss: { label: 'Jefe', glyph: '☠', status: 'El jefe aguarda' },
-    battle: { label: 'Combate', glyph: '⚔', status: 'Criaturas al acecho' },
-};
-
-const DEFAULT_NODE_META = { label: 'Sala', glyph: '⚔', status: 'Sala' };
-
-const KIND_HINTS = {
-    camp: 'Descansa y ajusta tu equipo. Desde aquí puedes seguir explorando.',
-    altar: 'La Virgen ofrece curación o una bendición para el próximo combate.',
-    trap: 'Puedes cruzar y encajar el daño, o sortearla pagando Puntos de Fe.',
-    treasure: 'Abre el arca para recoger los Puntos de Fe que guarda.',
-    gospel: 'Lee el fragmento: recibes Puntos de Fe y una bendición para la próxima batalla.',
-};
-
-const nodeMeta = (kind) => NODE_META[kind] ?? DEFAULT_NODE_META;
-const nodeLabel = (kind) => nodeMeta(kind).label;
-const nodeGlyph = (kind) => nodeMeta(kind).glyph;
 
 const team = ref([...props.teamIds]);
 const savedTeam = ref([...props.teamIds]);
@@ -76,7 +54,7 @@ const hitUnit = ref(null);
 const floats = reactive({});
 const logEntries = ref([]);
 const round = ref(0);
-const skipRequested = ref(false);
+const skipRequested = ref(prefersReducedMotion());
 const submitting = ref(false);
 const choosing = ref(false);
 const stepping = ref(false);
@@ -97,7 +75,7 @@ const view = ref(readSavedView());
 function readSavedView() {
     try {
         return window.localStorage.getItem('sanctorum:dungeon-view') === '2d' ? '2d' : '3d';
-    } catch (error) {
+    } catch {
         return '3d';
     }
 }
@@ -111,15 +89,15 @@ function setView(mode) {
 
     try {
         window.localStorage.setItem('sanctorum:dungeon-view', mode);
-    } catch (error) {
-        // No storage available: the preference only lives for this visit.
+    } catch {
+        // Sin almacenamiento: la preferencia vive solo en esta visita.
     }
 
     play('click');
 }
 
 function fallbackToMap() {
-    view.value = '2d';
+    setView('2d');
     toast.info('La vista 3D no está disponible; se muestra el mapa plano.');
 }
 
@@ -148,7 +126,12 @@ function resetView() {
 }
 
 function onWheel(event) {
-    zoomBy(event.deltaY < 0 ? 0.15 : -0.15);
+    if (!event.ctrlKey && !event.metaKey) {
+        return;
+    }
+
+    event.preventDefault();
+    zoomBy(event.deltaY < 0 ? 0.2 : -0.2);
 }
 
 function onDragStart(event) {
@@ -253,11 +236,11 @@ const statusText = computed(() => {
         return 'La oscuridad te ha vencido';
     }
 
-    return nodeMeta(current.value.kind).status;
+    return nodeStatus(current.value.kind);
 });
 
 const mapHint = computed(() => {
-    const hint = KIND_HINTS[current.value.kind];
+    const hint = nodeHint(current.value.kind);
 
     if (hint) {
         return hint;
@@ -388,7 +371,7 @@ function reset() {
     round.value = 0;
     activeUnit.value = null;
     hitUnit.value = null;
-    skipRequested.value = false;
+    skipRequested.value = prefersReducedMotion();
     allies.value = units.value.map((unit) => ({ ...unit }));
     foes.value = buildFoes(current.value);
     Object.keys(floats).forEach((key) => delete floats[key]);
@@ -781,8 +764,7 @@ async function saveTeam(silent = false) {
 
         return true;
     } catch (error) {
-        play('error');
-        toast.error(error.firstError?.() ?? error.message);
+        reportError(error);
 
         return false;
     } finally {
@@ -811,8 +793,7 @@ async function moveTo(room) {
         markWalking(900);
         play('click');
     } catch (error) {
-        play('error');
-        toast.error(error.firstError?.() ?? error.message);
+        reportError(error);
     } finally {
         choosing.value = false;
     }
@@ -843,8 +824,7 @@ async function resolveAction(action) {
         toast.info(data.outcome.text);
         play('click');
     } catch (error) {
-        play('error');
-        toast.error(error.firstError?.() ?? error.message);
+        reportError(error);
     } finally {
         stepping.value = false;
     }
@@ -925,18 +905,24 @@ async function startFight() {
     } catch (error) {
         if (token === runToken) {
             phase.value = 'idle';
-            play('error');
-            toast.error(error.firstError?.() ?? error.message);
+            reportError(error);
         }
     } finally {
         submitting.value = false;
     }
 }
 
+function focusEncounter() {
+    nextTick(() => {
+        document.querySelector('.mz-encounter .mz-btn:not([disabled])')?.focus();
+    });
+}
+
 function dismissResult() {
     result.value = null;
     phase.value = 'idle';
     play('click');
+    focusEncounter();
 }
 
 function retry() {
@@ -944,19 +930,22 @@ function retry() {
     phase.value = 'idle';
     play('click');
     startFight();
+    focusEncounter();
 }
+
+const confirmRestart = ref(false);
+const restartMessage = '¿Reiniciar el descenso desde el campamento de entrada? El récord se conserva.';
 
 function restartRun() {
     if (phase.value === 'running') {
         return;
     }
 
-    const confirmed = window.confirm('¿Reiniciar el descenso desde el campamento de entrada? El récord se conserva.');
+    confirmRestart.value = true;
+}
 
-    if (!confirmed) {
-        return;
-    }
-
+function confirmRestartRun() {
+    confirmRestart.value = false;
     play('click');
 
     router.post(`/mazmorras/${props.dungeon.key}/reiniciar`, {}, {
@@ -979,11 +968,9 @@ watch(
     },
 );
 
-const previousTheme = currentTheme.value;
-const previousFont = currentFont.value;
+const restoreTheme = useTemporaryTheme(props.dungeon.theme);
 
 onMounted(() => {
-    applyTheme(props.dungeon.theme, { persist: false, font: previousFont });
     reset();
     nextTick(() => {
         setTimer(() => {
@@ -996,7 +983,7 @@ onBeforeUnmount(() => {
     alive = false;
     runToken += 1;
     clearTimers();
-    applyTheme(previousTheme, { persist: false, font: previousFont });
+    restoreTheme();
 });
 
 const logClass = (entry) => {
@@ -1036,14 +1023,14 @@ const logClass = (entry) => {
 
             <div class="mz-head-actions">
                 <div class="mz-stats">
-                    <span class="mz-stat"><strong>{{ runFloor }}</strong> piso</span>
-                    <span class="mz-stat"><strong>{{ bestFloor }}</strong> récord</span>
+                    <span class="mz-stat">Piso <strong>{{ runFloor }}</strong></span>
+                    <span class="mz-stat">Récord <strong>{{ bestFloor }}</strong></span>
                     <span class="mz-stat mz-stat--gold">
                         <span class="coin" aria-hidden="true"></span>
                         <strong>{{ grace }}</strong>
                     </span>
                     <span v-if="blessing > 0" class="mz-stat mz-stat--teal">
-                        <strong>+{{ blessing }}%</strong> ataque
+                        <strong>+{{ blessing }}%</strong> de ataque
                     </span>
                 </div>
                 <button type="button" class="mz-btn mz-btn--ghost mz-btn--sm" :disabled="phase === 'running'" @click="restartRun">
@@ -1090,23 +1077,29 @@ const logClass = (entry) => {
                     </div>
                 </header>
 
-                <DungeonScene
-                    v-if="view === '3d'"
-                    :map="mapState"
-                    :team="teamCards"
-                    :accent="dungeon.accent"
-                    :accent2="dungeon.accent2"
-                    :walking="walking"
-                    :can-choose="canChoose"
-                    @move="moveTo"
-                    @unsupported="fallbackToMap"
-                />
+                <Suspense v-if="view === '3d'">
+                    <DungeonScene
+                        :map="mapState"
+                        :team="teamCards"
+                        :accent="dungeon.accent"
+                        :accent2="dungeon.accent2"
+                        :walking="walking"
+                        :can-choose="canChoose"
+                        @move="moveTo"
+                        @unsupported="fallbackToMap"
+                    />
+                    <template #fallback>
+                        <div class="mz-scene mz-scene-fallback">
+                            <p>Preparando la escena…</p>
+                        </div>
+                    </template>
+                </Suspense>
 
                 <div
                     v-else
                     class="mz-viewport"
                     :class="{ 'is-zoomed': zoom > 1, 'is-dragging': drag.active }"
-                    @wheel.prevent="onWheel"
+                    @wheel="onWheel"
                     @pointerdown="onDragStart"
                     @pointermove="onDragMove"
                     @pointerup="onDragEnd"
@@ -1163,13 +1156,9 @@ const logClass = (entry) => {
 
                 <footer class="mz-map-foot">
                     <div class="mz-legend">
-                        <span class="mz-legend-item is-battle"><span aria-hidden="true">⚔</span> Combate</span>
-                        <span class="mz-legend-item is-camp"><span aria-hidden="true">✦</span> Campamento</span>
-                        <span class="mz-legend-item is-altar"><span aria-hidden="true">✚</span> Altar</span>
-                        <span class="mz-legend-item is-trap"><span aria-hidden="true">⚠</span> Trampa</span>
-                        <span class="mz-legend-item is-treasure"><span aria-hidden="true">◆</span> Tesoro</span>
-                        <span class="mz-legend-item is-gospel"><span aria-hidden="true">✞</span> Fragmento</span>
-                        <span class="mz-legend-item is-boss"><span aria-hidden="true">☠</span> Jefe</span>
+                        <span v-for="kind in nodeKinds()" :key="kind.key" class="mz-legend-item" :class="`is-${kind.key}`">
+                            <span aria-hidden="true">{{ kind.glyph }}</span> {{ kind.label }}
+                        </span>
                         <span class="mz-legend-item is-fog"><span aria-hidden="true">?</span> Sin explorar</span>
                     </div>
 
@@ -1237,7 +1226,7 @@ const logClass = (entry) => {
                                     </span>
                                     <img :src="unit.sprite" :alt="unit.name" draggable="false" />
                                     <span class="mz-fighter-name">{{ unit.short }}</span>
-                                    <span class="mz-fighter-lv">{{ isBoss && index === 0 ? 'Jefe' : `Nv. ${unit.level}` }}</span>
+                                    <span class="mz-fighter-lv">{{ isBoss && index === 0 ? 'Jefe' : `Piso ${unit.level}` }}</span>
                                     <div class="mz-hp" :class="hpClass(unit)">
                                         <span class="mz-hp-bar" :style="{ width: `${hpPercent(unit)}%` }"></span>
                                         <span v-if="shields[unit.id]" class="mz-shield" :style="{ width: `${shieldPercent(unit)}%` }"></span>
@@ -1310,7 +1299,7 @@ const logClass = (entry) => {
 
                         <div v-else-if="current.kind === 'trap'" class="mz-target-stats">
                             <span>{{ current.effect === 'grace' ? 'Robo de Fe' : 'Daño' }} <strong>{{ current.power }}%</strong></span>
-                            <span>Sortear <strong>{{ current.avoid_cost }} Fe</strong></span>
+                            <span>Sortear <strong>{{ current.avoid_cost }} Puntos de Fe</strong></span>
                         </div>
 
                         <blockquote v-if="current.kind === 'gospel' && current.verse" class="mz-verse">
@@ -1362,10 +1351,10 @@ const logClass = (entry) => {
                                 type="button"
                                 class="mz-btn mz-btn--ghost"
                                 :disabled="stepping || grace < current.avoid_cost"
-                                :title="`Rodear la trampa cuesta ${current.avoid_cost} Puntos de Fe`"
+                                :title="`Sortear la trampa cuesta ${current.avoid_cost} Puntos de Fe`"
                                 @click="resolveAction('avoid')"
                             >
-                                Sortear ({{ current.avoid_cost }} Fe)
+                                Sortear ({{ current.avoid_cost }} Puntos de Fe)
                             </button>
                         </div>
 
@@ -1394,7 +1383,7 @@ const logClass = (entry) => {
                         <h2 class="mz-panel-title">Crónica del combate</h2>
                     </header>
                     <div class="mz-panel-body">
-                        <div ref="logBox" class="mz-log" aria-live="polite">
+                        <div ref="logBox" class="mz-log" :aria-live="phase === 'done' ? 'polite' : 'off'">
                             <p v-if="logEntries.length === 0" class="mz-note">La crónica aparecerá al presentar batalla.</p>
                             <div
                                 v-for="entry in logEntries"
@@ -1543,5 +1532,12 @@ const logClass = (entry) => {
                 </div>
             </div>
         </section>
+
+        <ConfirmDialog
+            v-if="confirmRestart"
+            :message="restartMessage"
+            @confirm="confirmRestartRun"
+            @cancel="confirmRestart = false"
+        />
     </div>
 </template>

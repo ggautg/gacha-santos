@@ -110,31 +110,4 @@ final class CardPresenter
             'power' => $copy->power(),
         ];
     }
-
-    public static function unit(SaintCopy $copy): array
-    {
-        $saint = $copy->saint;
-        $stats = $copy->stats();
-
-        return [
-            'id' => null,
-            'name' => $saint->name,
-            'short' => self::shortName($saint->name),
-            'level' => $copy->level,
-            'rarity' => $saint->rarity,
-            'hp' => $stats['hp'],
-            'maxHp' => $stats['hp'],
-            'atk' => $stats['atk'],
-            'def' => $stats['def'],
-            'spd' => $stats['spd'],
-            'skill_name' => $saint->skill_name,
-            'sprite' => self::artUrl($saint),
-            'power' => $copy->power(),
-        ];
-    }
-
-    public static function shortName(string $name): string
-    {
-        return preg_replace('/^(San|Santa|Santo|Beato|Beata)\s+/u', '', $name) ?: $name;
-    }
 }

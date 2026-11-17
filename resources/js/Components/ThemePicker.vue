@@ -1,5 +1,6 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, nextTick, ref } from 'vue';
+import { useDismissable } from '../lib/dialog';
 import { play } from '../lib/sfx';
 import {
     applyFont,
@@ -19,6 +20,10 @@ const activeTheme = computed(() => THEMES.find((theme) => theme.key === currentT
 function toggle() {
     open.value = !open.value;
     play('click');
+
+    if (open.value) {
+        nextTick(() => picker.value?.querySelector('.theme-option')?.focus());
+    }
 }
 
 function chooseTheme(key) {
@@ -36,27 +41,7 @@ function reset() {
     play('click');
 }
 
-function onDocumentClick(event) {
-    if (open.value && picker.value && !picker.value.contains(event.target)) {
-        open.value = false;
-    }
-}
-
-function onDocumentKey(event) {
-    if (event.key === 'Escape') {
-        open.value = false;
-    }
-}
-
-onMounted(() => {
-    document.addEventListener('click', onDocumentClick);
-    document.addEventListener('keydown', onDocumentKey);
-});
-
-onBeforeUnmount(() => {
-    document.removeEventListener('click', onDocumentClick);
-    document.removeEventListener('keydown', onDocumentKey);
-});
+useDismissable(open, picker);
 </script>
 
 <template>

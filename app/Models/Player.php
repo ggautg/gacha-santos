@@ -59,9 +59,4 @@ class Player extends Model
     {
         return array_values(array_map('intval', $this->team ?? []));
     }
-
-    public function addGrace(int $amount): void
-    {
-        $this->grace = max(0, $this->grace + $amount);
-    }
 }

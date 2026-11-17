@@ -2,6 +2,8 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { prefersReducedMotion } from '../lib/motion';
+import { nodeKinds } from '../lib/dungeonNodes';
 
 const props = defineProps({
     map: { type: Object, default: () => ({}) },
@@ -26,6 +28,7 @@ const EYE_HEIGHT = 1.42;
 const RENDER_SCALE = 0.8;
 const ART_RATIO = 24 / 28;
 const CAMERA_KEY = 'sanctorum:dungeon-camera';
+const reduceMotion = prefersReducedMotion();
 
 const DIRECTIONS = [
     { dx: 0, dz: -1 },
@@ -39,42 +42,16 @@ const facing = ref(0);
 function readCameraMode() {
     try {
         return window.localStorage.getItem(CAMERA_KEY) !== 'orbit';
-    } catch (error) {
+    } catch {
         return true;
     }
 }
 
-const KIND_COLORS = {
-    camp: 0xd7b878,
-    altar: 0x7fe3d8,
-    battle: 0xe84057,
-    boss: 0xff4d6a,
-    trap: 0xe0a45c,
-    treasure: 0xf0d27a,
-    gospel: 0xbfe5ff,
-};
+const KINDS = nodeKinds();
+const KIND_COLORS = Object.fromEntries(KINDS.map((kind) => [kind.key, Number.parseInt(kind.color.slice(1), 16)]));
+const KIND_LABELS = Object.fromEntries(KINDS.map((kind) => [kind.key, kind.label]));
+const MINI_FILL = Object.fromEntries(KINDS.map((kind) => [kind.key, kind.color]));
 
-const KIND_LABELS = {
-    camp: 'Campamento',
-    altar: 'Altar',
-    battle: 'Combate',
-    boss: 'Jefe',
-    trap: 'Trampa',
-    treasure: 'Tesoro',
-    gospel: 'Fragmento',
-};
-
-const MINI_FILL = {
-    camp: '#d7b878',
-    altar: '#7fe3d8',
-    battle: '#e84057',
-    boss: '#ff4d6a',
-    trap: '#e0a45c',
-    treasure: '#f0d27a',
-    gospel: '#bfe5ff',
-};
-
-const FACING_LABELS = ['Norte', 'Este', 'Sur', 'Oeste'];
 const FACING_SHORT = ['N', 'E', 'S', 'O'];
 
 /**
@@ -291,6 +268,7 @@ const onPointerDown = (event) => {
 
     pointerDown = { x: event.clientX, y: event.clientY };
     dragDistance = 0;
+    host.value?.focus();
 
     if (renderer) {
         renderer.domElement.style.cursor = 'grabbing';
@@ -354,6 +332,10 @@ const onPointerLeave = () => {
 
 const onKeyDown = (event) => {
     if (!firstPerson.value || failed.value || event.repeat) {
+        return;
+    }
+
+    if (!host.value?.contains(document.activeElement)) {
         return;
     }
 
@@ -490,7 +472,6 @@ const canStepForward = computed(() => aheadRoom.value !== null && aheadRoom.valu
 const canStepBackward = computed(() => behindRoom.value !== null && behindRoom.value.reachable && props.canChoose);
 
 const currentRoomData = computed(() => currentRoom());
-const facingLabel = computed(() => FACING_LABELS[facing.value]);
 const facingShort = computed(() => FACING_SHORT[facing.value]);
 
 const aheadInfo = computed(() => {
@@ -627,9 +608,9 @@ function applyFirstPersonCamera(delta) {
 
     let diff = yawTarget - yaw;
     diff = Math.atan2(Math.sin(diff), Math.cos(diff));
-    yaw += diff * Math.min(1, delta * 10);
+    yaw += reduceMotion ? diff : diff * Math.min(1, delta * 10);
 
-    const bob = props.walking ? Math.sin(walkTime * 2) * 0.03 : 0;
+    const bob = props.walking && !reduceMotion ? Math.sin(walkTime * 2) * 0.03 : 0;
     const x = partyGroup.position.x;
     const z = partyGroup.position.z;
     const eyeY = EYE_HEIGHT + bob;
@@ -653,7 +634,7 @@ function setCamera(mode) {
 
     try {
         window.localStorage.setItem(CAMERA_KEY, next ? 'first' : 'orbit');
-    } catch (error) {
+    } catch {
         // Sin almacenamiento: la preferencia vive solo en esta visita.
     }
 
@@ -1155,7 +1136,7 @@ function init() {
     timer.connect(document);
 
     controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
+    controls.enableDamping = !reduceMotion;
     controls.dampingFactor = 0.075;
     controls.enablePan = false;
     controls.minDistance = 4;
@@ -1257,38 +1238,52 @@ function tick() {
     const time = timer.getElapsed();
 
     for (const marker of markers.values()) {
-        marker.spinner.rotation.y += delta * marker.speed;
-        marker.group.position.y = marker.baseY + Math.sin(time * 1.8 + marker.phase) * 0.07;
+        if (reduceMotion) {
+            marker.group.position.y = marker.baseY;
+        } else {
+            marker.spinner.rotation.y += delta * marker.speed;
+            marker.group.position.y = marker.baseY + Math.sin(time * 1.8 + marker.phase) * 0.07;
+        }
     }
 
     for (const ring of rings) {
-        ring.mesh.material.opacity = 0.35 + Math.sin(time * 2.8 + ring.phase) * 0.2;
+        ring.mesh.material.opacity = reduceMotion ? 0.4 : 0.35 + Math.sin(time * 2.8 + ring.phase) * 0.2;
 
-        if (ring.spin) {
+        if (ring.spin && !reduceMotion) {
             ring.mesh.rotation.z += delta * ring.spin;
         }
     }
 
     if (partyGroup !== null) {
-        partyGroup.position.lerp(partyTarget, Math.min(1, delta * 5.5));
+        if (reduceMotion) {
+            partyGroup.position.copy(partyTarget);
+        } else {
+            partyGroup.position.lerp(partyTarget, Math.min(1, delta * 5.5));
+        }
     }
 
-    if (props.walking) {
+    if (props.walking && !reduceMotion) {
         walkTime += delta * 9;
     }
 
     for (const { sprite, phase } of partySprites) {
         const base = sprite.userData.baseY ?? 0.66;
-        const bob = props.walking ? Math.abs(Math.sin(walkTime + phase)) * 0.1 : 0;
-        sprite.position.y += (base + bob - sprite.position.y) * Math.min(1, delta * 10);
+        const bob = props.walking && !reduceMotion ? Math.abs(Math.sin(walkTime + phase)) * 0.1 : 0;
+        const nextY = base + bob;
+
+        if (reduceMotion) {
+            sprite.position.y = nextY;
+        } else {
+            sprite.position.y += (nextY - sprite.position.y) * Math.min(1, delta * 10);
+        }
     }
 
     if (firstPerson.value) {
         applyFirstPersonCamera(delta);
     } else {
         if (cameraTween !== null) {
-            cameraTween.progress = Math.min(1, cameraTween.progress + delta / 0.55);
-            const eased = 1 - Math.pow(1 - cameraTween.progress, 3);
+            cameraTween.progress = reduceMotion ? 1 : Math.min(1, cameraTween.progress + delta / 0.55);
+            const eased = reduceMotion ? 1 : 1 - Math.pow(1 - cameraTween.progress, 3);
             controls.target.lerpVectors(cameraTween.fromTarget, cameraTween.toTarget, eased);
             camera.position.lerpVectors(cameraTween.fromPosition, cameraTween.toPosition, eased);
 
@@ -1298,7 +1293,13 @@ function tick() {
             }
         } else if (follow) {
             const before = controls.target.clone();
-            controls.target.lerp(focusPoint, Math.min(1, delta * 4));
+
+            if (reduceMotion) {
+                controls.target.copy(focusPoint);
+            } else {
+                controls.target.lerp(focusPoint, Math.min(1, delta * 4));
+            }
+
             camera.position.add(controls.target.clone().sub(before));
         }
 
@@ -1363,7 +1364,7 @@ onMounted(() => {
         }
 
         tick();
-    } catch (error) {
+    } catch {
         failed.value = true;
         cleanup();
         emit('unsupported');
@@ -1396,7 +1397,7 @@ onBeforeUnmount(cleanup);
 </script>
 
 <template>
-    <div ref="host" class="mz-scene" :class="{ 'is-failed': failed }">
+    <div ref="host" class="mz-scene" :class="{ 'is-failed': failed }" tabindex="0" aria-label="Escena del laberinto">
         <div v-if="failed" class="mz-scene-fallback">
             <strong>No se pudo iniciar la vista 3D</strong>
             <span>Tu navegador no tiene WebGL disponible. Puedes seguir usando el mapa plano.</span>

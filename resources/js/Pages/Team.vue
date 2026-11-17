@@ -1,8 +1,9 @@
 <script setup>
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
+import PageHeader from '../Components/PageHeader.vue';
 import SaintCard from '../Components/SaintCard.vue';
-import { post } from '../lib/api';
+import { post, reportError } from '../lib/api';
 import { play } from '../lib/sfx';
 import { toast } from '../lib/toast';
 
@@ -10,7 +11,6 @@ const props = defineProps({
     roster: { type: Array, default: () => [] },
     teamIds: { type: Array, default: () => [] },
     power: { type: Number, default: 0 },
-    player: { type: Object, required: true },
 });
 
 const team = ref([...props.teamIds]);
@@ -82,13 +82,12 @@ async function persist(manual = false) {
         }
 
         if (manual) {
-            toast.success('Equipo guardado. La hueste está lista.');
+            toast.success('Equipo guardado. El equipo está listo.');
             play('level');
         }
     } catch (error) {
         status.value = 'error';
-        play('error');
-        toast.error(error.firstError?.() ?? error.message);
+        reportError(error);
     } finally {
         saving.value = false;
     }
@@ -130,7 +129,6 @@ function toggle(saint) {
 
     if (team.value.length >= 3) {
         toast.info('Solo puedes llevar tres santos. Quita uno antes de añadir otro.');
-        play('error');
 
         return;
     }
@@ -163,20 +161,16 @@ function focusRoster() {
 <template>
     <Head title="Equipo" />
 
-    <header class="page-head">
-        <div>
-            <span class="page-kicker">Sanctorum · Escuadra</span>
-            <h1 class="page-title">Tu hueste de santos</h1>
-            <p class="page-lead">
-                Elige hasta tres santos. Combina sanadores, escudos y golpes de fe: cada perfil
-                cambia el ritmo de la batalla.
-            </p>
-        </div>
+    <PageHeader
+        kicker="Sanctorum · Escuadra"
+        title="Tu equipo de santos"
+        lead="Elige hasta tres santos. Combina sanadores, escudos y golpes de fe: cada perfil cambia el ritmo de la batalla."
+    >
         <div class="btn-row">
             <span class="tag">Poder <strong>{{ localPower }}</strong></span>
             <Link href="/mazmorras" class="btn btn--gold btn--sm" @click="play('click')">A las mazmorras</Link>
         </div>
-    </header>
+    </PageHeader>
 
     <div class="team-layout">
         <div class="panel team-panel">
@@ -209,7 +203,7 @@ function focusRoster() {
                             </button>
                             <img :src="slot.art" :alt="slot.name" draggable="false" />
                             <span class="slot-name">{{ slot.name }}</span>
-                            <span class="slot-level">Nv. {{ slot.owned.level }} · {{ slot.owned.power }} PX</span>
+                            <span class="slot-level">Nv. {{ slot.owned.level }} · Poder {{ slot.owned.power }}</span>
                         </template>
                         <template v-else>
                             <span class="slot-empty">
@@ -242,7 +236,7 @@ function focusRoster() {
                 </div>
 
                 <p class="panel-note" style="margin-top: 10px">
-                    El equipo se guarda automáticamente. El poder inicial era {{ serverPower }}.
+                    El equipo se guarda automáticamente. Poder guardado: {{ serverPower }}.
                 </p>
             </div>
         </div>
