@@ -8,6 +8,7 @@ use App\Models\SaintCopy;
 use App\Services\BattleService;
 use App\Support\CardPresenter;
 use App\Support\DungeonRules;
+use App\Support\ValidationMessages;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -140,16 +141,11 @@ class DungeonController extends Controller
         /** @var Player $player */
         $player = $request->attributes->get('player');
 
-        $data = $request->validate([
-            'team' => ['nullable', 'array'],
-            'team.*' => ['integer'],
-        ]);
-
         try {
-            $result = $battles->fightDungeon($player, $dungeon, $data['team'] ?? []);
+            $result = $battles->fightDungeon($player, $dungeon);
         } catch (ValidationException $exception) {
             return response()->json([
-                'message' => $exception->getMessage(),
+                'message' => 'No se pudo completar la acción. Revisa los datos e inténtalo de nuevo.',
                 'errors' => $exception->errors(),
             ], 422);
         }
@@ -172,13 +168,13 @@ class DungeonController extends Controller
 
         $data = $request->validate([
             'room' => ['required', 'integer', 'min:0'],
-        ]);
+        ], ValidationMessages::rules(), ValidationMessages::attributes());
 
         try {
             $run = DungeonRules::moveTo($player, $dungeon, (int) $data['room']);
         } catch (ValidationException $exception) {
             return response()->json([
-                'message' => $exception->getMessage(),
+                'message' => 'No se pudo completar la acción. Revisa los datos e inténtalo de nuevo.',
                 'errors' => $exception->errors(),
             ], 422);
         }
@@ -214,7 +210,7 @@ class DungeonController extends Controller
             'action' => ['required', 'string', 'in:rest,heal,bless,cross,avoid,open,read'],
             'team' => ['nullable', 'array'],
             'team.*' => ['integer'],
-        ]);
+        ], ValidationMessages::rules(), ValidationMessages::attributes());
 
         try {
             $result = DungeonRules::resolveStep(
@@ -225,7 +221,7 @@ class DungeonController extends Controller
             );
         } catch (ValidationException $exception) {
             return response()->json([
-                'message' => $exception->getMessage(),
+                'message' => 'No se pudo completar la acción. Revisa los datos e inténtalo de nuevo.',
                 'errors' => $exception->errors(),
             ], 422);
         }
@@ -246,13 +242,13 @@ class DungeonController extends Controller
         $data = $request->validate([
             'team' => ['required', 'array', 'min:1', 'max:3'],
             'team.*' => ['integer'],
-        ]);
+        ], ValidationMessages::rules(), ValidationMessages::attributes());
 
         try {
             $run = DungeonRules::setTeam($player, $dungeon, $data['team']);
         } catch (ValidationException $exception) {
             return response()->json([
-                'message' => $exception->getMessage(),
+                'message' => 'No se pudo completar la acción. Revisa los datos e inténtalo de nuevo.',
                 'errors' => $exception->errors(),
             ], 422);
         }

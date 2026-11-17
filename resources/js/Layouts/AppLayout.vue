@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
+import ThemePicker from '../Components/ThemePicker.vue';
 import ToastStack from '../Components/ToastStack.vue';
 import {
     formatNumber,
@@ -8,15 +9,6 @@ import {
     usePlayer,
 } from '../lib/player';
 import { isMuted, play, toggleMuted } from '../lib/sfx';
-import {
-    applyFont,
-    applyTheme,
-    currentFont,
-    currentTheme,
-    FONTS,
-    resetTheme,
-    THEMES,
-} from '../lib/theme';
 import { toast } from '../lib/toast';
 
 const page = usePage();
@@ -26,6 +18,7 @@ const nav = [
     { href: '/', label: 'Inicio' },
     { href: '/orar', label: 'Orar' },
     { href: '/coleccion', label: 'Colección' },
+    { href: '/equipo', label: 'Equipo' },
     { href: '/mazmorras', label: 'Mazmorras' },
 ];
 
@@ -89,21 +82,6 @@ function toggleProfile() {
     play('click');
 }
 
-function chooseTheme(key) {
-    applyTheme(key);
-    play('click');
-}
-
-function chooseFont(key) {
-    applyFont(key);
-    play('click');
-}
-
-function resetAppearance() {
-    resetTheme();
-    play('click');
-}
-
 function toggleSound() {
     toggleMuted();
     play('click');
@@ -145,8 +123,6 @@ function resetAccount() {
                             <span class="brand-sub">Launcher de Santos</span>
                         </span>
                     </Link>
-
-                    
                 </div>
 
                 <nav class="launcher-tabs" aria-label="Navegación principal">
@@ -164,6 +140,8 @@ function resetAccount() {
                 </nav>
 
                 <div class="launcher-top-actions">
+                    <ThemePicker />
+
                     <span class="grace-chip" title="Puntos de Fe">
                         <span class="coin" aria-hidden="true"></span>
                         {{ formatNumber(player.grace) }}
@@ -202,45 +180,6 @@ function resetAccount() {
                                     {{ formatNumber(player.grace) }}
                                     <span class="sr-only">Puntos de Fe</span>
                                 </span>
-                            </div>
-
-                            <p class="profile-dropdown-label">Apariencia</p>
-                            <div class="profile-themes">
-                                <button
-                                    v-for="theme in THEMES"
-                                    :key="theme.key"
-                                    type="button"
-                                    class="profile-theme"
-                                    :class="{ 'is-active': currentTheme === theme.key }"
-                                    :aria-pressed="currentTheme === theme.key"
-                                    :title="`${theme.name} · ${theme.note}`"
-                                    @click="chooseTheme(theme.key)"
-                                >
-                                    <span class="profile-theme-swatches" aria-hidden="true">
-                                        <span :style="{ background: theme.accent }"></span>
-                                        <span :style="{ background: theme.accent2 }"></span>
-                                        <span :style="{ background: theme.ink }"></span>
-                                    </span>
-                                    <span>{{ theme.name }}</span>
-                                </button>
-                            </div>
-                            <div class="profile-fonts">
-                                <button
-                                    v-for="font in FONTS"
-                                    :key="font.key"
-                                    type="button"
-                                    class="profile-font"
-                                    :class="{ 'is-active': currentFont === font.key }"
-                                    :aria-pressed="currentFont === font.key"
-                                    :title="font.note"
-                                    :style="{ fontFamily: font.stack }"
-                                    @click="chooseFont(font.key)"
-                                >
-                                    Aa
-                                </button>
-                                <button type="button" class="profile-reset" @click="resetAppearance">
-                                    Restablecer
-                                </button>
                             </div>
 
                             <div class="profile-dropdown-foot">

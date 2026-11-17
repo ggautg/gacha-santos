@@ -20,6 +20,16 @@ class GachaTest extends TestCase
         $this->seed(SaintSeeder::class);
     }
 
+    public function test_validation_errors_are_written_in_spanish(): void
+    {
+        $this->createPlayer();
+
+        $this->postJson('/gacha', ['count' => 99])
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'Los datos enviados no son válidos.')
+            ->assertJsonPath('errors.count.0', 'El valor seleccionado no es válido.');
+    }
+
     public function test_a_single_pull_costs_grace_and_returns_one_card(): void
     {
         $player = $this->createPlayer();

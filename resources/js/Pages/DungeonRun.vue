@@ -5,7 +5,7 @@ import SaintCard from '../Components/SaintCard.vue';
 import { post } from '../lib/api';
 import { patchPlayer } from '../lib/player';
 import { play } from '../lib/sfx';
-import { applyTheme } from '../lib/theme';
+import { applyTheme, currentFont, currentTheme } from '../lib/theme';
 import { toast } from '../lib/toast';
 
 const DungeonScene = defineAsyncComponent(() => import('../Components/DungeonScene.vue'));
@@ -979,8 +979,11 @@ watch(
     },
 );
 
+const previousTheme = currentTheme.value;
+const previousFont = currentFont.value;
+
 onMounted(() => {
-    applyTheme(props.dungeon.theme);
+    applyTheme(props.dungeon.theme, { persist: false, font: previousFont });
     reset();
     nextTick(() => {
         setTimer(() => {
@@ -993,6 +996,7 @@ onBeforeUnmount(() => {
     alive = false;
     runToken += 1;
     clearTimers();
+    applyTheme(previousTheme, { persist: false, font: previousFont });
 });
 
 const logClass = (entry) => {
@@ -1190,9 +1194,6 @@ const logClass = (entry) => {
                     <header class="mz-panel-head">
                         <h2 class="mz-panel-title">Combate</h2>
                         <span class="mz-panel-note">{{ statusText }}</span>
-                        <button v-if="phase === 'running'" type="button" class="mz-btn mz-btn--ghost mz-btn--sm" @click="skipAnimation">
-                            Saltar
-                        </button>
                     </header>
 
                     <div class="mz-arena">
@@ -1452,6 +1453,7 @@ const logClass = (entry) => {
                             :tabindex="slot ? undefined : 0"
                             @click="!slot && focusRoster()"
                             @keydown.enter="!slot && focusRoster()"
+                            @keydown.space.prevent="!slot && focusRoster()"
                         >
                             <template v-if="slot">
                                 <button

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import SaintCard from './SaintCard.vue';
 import { usePlayer } from '../lib/player';
@@ -56,28 +56,65 @@ const levelUp = () => {
 
 const close = () => emit('close');
 
+const dialog = ref(null);
+const closeButton = ref(null);
+let previousFocus = null;
+
+function focusables() {
+    return Array.from(
+        dialog.value?.querySelectorAll('button, [href], input, [tabindex]:not([tabindex="-1"])') ?? [],
+    );
+}
+
 const onKeydown = (event) => {
     if (event.key === 'Escape') {
         close();
+
+        return;
+    }
+
+    if (event.key !== 'Tab') {
+        return;
+    }
+
+    const items = focusables();
+
+    if (!items.length) {
+        return;
+    }
+
+    const first = items[0];
+    const last = items[items.length - 1];
+
+    if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
     }
 };
 
-onMounted(() => {
+onMounted(async () => {
+    previousFocus = document.activeElement;
     document.body.style.overflow = 'hidden';
     window.addEventListener('keydown', onKeydown);
+    await nextTick();
+    closeButton.value?.focus();
 });
 
 onBeforeUnmount(() => {
     document.body.style.overflow = '';
     window.removeEventListener('keydown', onKeydown);
+    previousFocus?.focus?.();
 });
 </script>
 
 <template>
     <Teleport to="body">
-        <div class="overlay" role="dialog" aria-modal="true" :aria-label="saint.name" @click.self="close">
+        <div ref="dialog" class="overlay" role="dialog" aria-modal="true" :aria-label="saint.name" @click.self="close">
             <div class="modal" :class="{ 'modal--mystery': mystery }" :style="{ '--rarity': saint.rarity_color }">
-                <button type="button" class="icon-btn modal-close" aria-label="Cerrar" @click="close">✕</button>
+                <button ref="closeButton" type="button" class="icon-btn modal-close" aria-label="Cerrar" @click="close">✕</button>
 
                 <div class="modal-grid">
                     <div class="modal-art" :style="{ '--rarity': saint.rarity_color }">
@@ -167,7 +204,7 @@ onBeforeUnmount(() => {
                                 </div>
                                 <p class="panel-note" style="margin-top: 6px">
                                     <template v-if="maxed">Santidad plena alcanzada.</template>
-                                    <template v-else>{{ owned.xp }} / {{ owned.xp_next }} de experiencia · {{ owned.copies }} copia(s)</template>
+                                    <template v-else>{{ owned.xp }} / {{ owned.xp_next }} de experiencia · {{ owned.copies }} {{ owned.copies === 1 ? 'copia' : 'copias' }}</template>
                                 </p>
 
                                 <div class="modal-tags" style="margin-top: 10px">

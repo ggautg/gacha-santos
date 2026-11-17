@@ -1,10 +1,12 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { Head } from '@inertiajs/vue3';
+import PageHeader from '../Components/PageHeader.vue';
+import ProgressMeter from '../Components/ProgressMeter.vue';
 import SaintCard from '../Components/SaintCard.vue';
 import SaintDetail from '../Components/SaintDetail.vue';
 import { post } from '../lib/api';
-import { patchPlayer, usePlayer } from '../lib/player';
+import { formatNumber, patchPlayer, usePlayer } from '../lib/player';
 import { play } from '../lib/sfx';
 import { toast } from '../lib/toast';
 
@@ -114,31 +116,24 @@ async function levelUp(saint) {
 <template>
     <Head title="Colección" />
 
-    <header class="page-head">
-        <div>
-            <span class="page-kicker">Sanctorum · Santoral</span>
-            <h1 class="page-title">El santoral reunido</h1>
-            <p class="page-lead">
-                Cada oración añade un retrato al santoral. Ilumina a tus santos con Puntos de Fe para
-                subir su nivel, su poder y sus estadísticas de combate.
-            </p>
-        </div>
-
+    <PageHeader
+        kicker="Sanctorum · Santoral"
+        title="El santoral reunido"
+        lead="Cada oración añade un retrato al santoral. Ilumina a tus santos con Puntos de Fe para subir su nivel, su poder y sus estadísticas de combate."
+    >
         <div class="panel" style="min-width: 260px">
             <div class="panel-body" style="padding: 12px 16px">
                 <div class="pity-head">
                     <span>Progreso del santoral</span>
                     <strong>{{ ownedCount }} / {{ total }}</strong>
                 </div>
-                <div class="meter">
-                    <span :style="{ width: `${percent}%` }"></span>
-                </div>
+                <ProgressMeter :value="percent" />
                 <p class="panel-note" style="margin-top: 6px">
-                    {{ percent }}% de los santos revelados · {{ store.grace }} Puntos de Fe
+                    {{ percent }}% de los santos revelados · {{ formatNumber(store.grace) }} Puntos de Fe
                 </p>
             </div>
         </div>
-    </header>
+    </PageHeader>
 
     <div class="toolbar">
         <button type="button" class="chip" :class="{ 'is-active': rarity === null }" @click="rarity = null">

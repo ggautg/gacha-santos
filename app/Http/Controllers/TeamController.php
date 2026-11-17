@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Player;
 use App\Models\SaintCopy;
 use App\Support\CardPresenter;
+use App\Support\ValidationMessages;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -49,7 +50,7 @@ class TeamController extends Controller
         $data = $request->validate([
             'team' => ['nullable', 'array', 'max:3'],
             'team.*' => ['integer'],
-        ]);
+        ], ValidationMessages::rules(), ValidationMessages::attributes());
 
         $owned = SaintCopy::where('player_id', $player->id)
             ->pluck('saint_id')

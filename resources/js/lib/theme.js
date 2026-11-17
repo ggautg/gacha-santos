@@ -106,7 +106,10 @@ export function applyTheme(key, { persist = true, font } = {}) {
         storeValue(THEME_KEY, theme.key === DEFAULT_THEME ? null : theme.key);
     }
 
-    applyFont(font ?? theme.font, { persist });
+    if (font) {
+        applyFont(font, { persist });
+    }
+
     syncMeta(theme);
 }
 

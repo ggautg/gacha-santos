@@ -75,7 +75,7 @@ const MINI_FILL = {
 };
 
 const FACING_LABELS = ['Norte', 'Este', 'Sur', 'Oeste'];
-const FACING_SHORT = ['N', 'E', 'S', 'W'];
+const FACING_SHORT = ['N', 'E', 'S', 'O'];
 
 /**
  * Dibuja un icono pixel-art de 16x16 para cada tipo de sala.
@@ -1481,7 +1481,7 @@ onBeforeUnmount(cleanup);
 
             <p class="mz-scene-hint">
                 {{ firstPerson
-                    ? 'W/↑ avanzar · S/↓ retroceder · A/D girar · Pulsa una sala conectada'
+                    ? 'W/↑ avanzar · S/↓ retroceder · A/D o ←/→ girar · Pulsa una sala conectada'
                     : 'Arrastra para girar · Rueda para acercar · Pulsa una sala conectada' }}
             </p>
 

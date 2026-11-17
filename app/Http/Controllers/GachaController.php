@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Player;
 use App\Models\Saint;
 use App\Services\GachaService;
+use App\Support\ValidationMessages;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -45,13 +46,13 @@ class GachaController extends Controller
 
         $data = $request->validate([
             'count' => ['nullable', 'integer', 'in:1,10'],
-        ]);
+        ], ValidationMessages::rules(), ValidationMessages::attributes());
 
         try {
             $result = $gacha->pull($player, (int) ($data['count'] ?? 1));
         } catch (ValidationException $exception) {
             return response()->json([
-                'message' => $exception->getMessage(),
+                'message' => 'No se pudo completar la oración. Revisa tus Puntos de Fe e inténtalo de nuevo.',
                 'errors' => $exception->errors(),
             ], 422);
         }

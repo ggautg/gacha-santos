@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import SaintCard from './SaintCard.vue';
 
 const props = defineProps({
@@ -10,6 +10,9 @@ const emit = defineEmits(['close']);
 
 const best = computed(() => Math.max(...props.cards.map((card) => card.rarity), 1));
 const freshCount = computed(() => props.cards.filter((card) => card.is_new).length);
+const repeatedCount = computed(() => props.cards.length - freshCount.value);
+const dialog = ref(null);
+const closeButton = ref(null);
 
 const glowByRarity = {
     5: 'rgba(242, 201, 76, 0.28)',
@@ -39,32 +42,68 @@ const title = computed(() => {
 
 const close = () => emit('close');
 
+let previousFocus = null;
+
+function focusables() {
+    return Array.from(
+        dialog.value?.querySelectorAll('button, [href], input, [tabindex]:not([tabindex="-1"])') ?? [],
+    );
+}
+
 const onKeydown = (event) => {
     if (event.key === 'Escape') {
         close();
+
+        return;
+    }
+
+    if (event.key !== 'Tab') {
+        return;
+    }
+
+    const items = focusables();
+
+    if (!items.length) {
+        return;
+    }
+
+    const first = items[0];
+    const last = items[items.length - 1];
+
+    if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+    } else if (! event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
     }
 };
 
-onMounted(() => {
+onMounted(async () => {
+    previousFocus = document.activeElement;
     document.body.style.overflow = 'hidden';
     window.addEventListener('keydown', onKeydown);
+    await nextTick();
+    closeButton.value?.focus();
 });
 
 onBeforeUnmount(() => {
     document.body.style.overflow = '';
     window.removeEventListener('keydown', onKeydown);
+    previousFocus?.focus?.();
 });
 </script>
 
 <template>
     <Teleport to="body">
-        <div class="reveal" :style="{ '--reveal-glow': glow }" role="dialog" aria-modal="true" aria-label="Resultado de la oración">
+        <div ref="dialog" class="reveal" :style="{ '--reveal-glow': glow }" role="dialog" aria-modal="true" aria-label="Resultado de la oración">
             <div class="reveal-burst" aria-hidden="true"></div>
 
             <h2 class="reveal-title">{{ title }}</h2>
 
             <p class="reveal-note">
-                {{ freshCount }} nuevo(s) · {{ cards.length - freshCount }} repetido(s)
+                {{ freshCount }} {{ freshCount === 1 ? 'nuevo' : 'nuevos' }} ·
+                {{ repeatedCount }} {{ repeatedCount === 1 ? 'repetido' : 'repetidos' }}
             </p>
 
             <div class="reveal-grid">
@@ -80,7 +119,7 @@ onBeforeUnmount(() => {
             </div>
 
             <div class="reveal-actions">
-                <button type="button" class="btn btn--gold btn--lg" @click="close">Continuar</button>
+                <button ref="closeButton" type="button" class="btn btn--gold btn--lg" @click="close">Continuar</button>
             </div>
         </div>
     </Teleport>

@@ -1,5 +1,6 @@
 <script setup>
 import { Head, Link } from '@inertiajs/vue3';
+import { formatNumber } from '../lib/player';
 import { play } from '../lib/sfx';
 
 defineProps({
@@ -68,7 +69,7 @@ function nodeLabel(kind) {
                 <span class="mz-stat">Piso más hondo <strong>{{ deepest }}</strong></span>
                 <span class="mz-stat mz-stat--gold">
                     <span class="coin" aria-hidden="true"></span>
-                    <strong>{{ player.grace }}</strong>
+                    <strong>{{ formatNumber(player.grace) }}</strong>
                 </span>
             </div>
         </header>

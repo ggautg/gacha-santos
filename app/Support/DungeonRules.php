@@ -7,6 +7,8 @@ use App\Models\DungeonRun;
 use App\Models\GospelVerse;
 use App\Models\Player;
 use App\Models\SaintCopy;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -69,19 +71,30 @@ final class DungeonRules
     {
         self::get($key);
 
-        $run = DungeonRun::firstOrCreate(
-            ['player_id' => $player->id, 'dungeon' => $key],
-            [
-                'seed' => random_int(1, 2_147_483_647),
-                'floor' => 1,
-                'route' => 0,
-                'room' => 0,
-                'cleared' => [],
-                'team' => [],
-                'vitals' => [],
-                'blessing' => 0,
-            ],
-        );
+        try {
+            $run = DungeonRun::firstOrCreate(
+                ['player_id' => $player->id, 'dungeon' => $key],
+                [
+                    'seed' => random_int(1, 2_147_483_647),
+                    'floor' => 1,
+                    'route' => 0,
+                    'room' => 0,
+                    'cleared' => [],
+                    'team' => [],
+                    'vitals' => [],
+                    'blessing' => 0,
+                ],
+            );
+        } catch (QueryException $exception) {
+            // Dos peticiones iniciales pueden competir por el mismo descenso.
+            if (! str_contains((string) $exception->getMessage(), 'Duplicate')) {
+                throw $exception;
+            }
+
+            $run = DungeonRun::where('player_id', $player->id)
+                ->where('dungeon', $key)
+                ->firstOrFail();
+        }
 
         return self::syncLoadout($player, $run);
     }
@@ -303,39 +316,54 @@ final class DungeonRules
      */
     public static function resolveStep(Player $player, string $key, string $action, ?array $team = null): array
     {
-        $run = self::run($player, $key);
+        return DB::transaction(function () use ($player, $key, $action, $team): array {
+            /** @var Player $player */
+            $player = Player::whereKey($player->id)->lockForUpdate()->firstOrFail();
 
-        if ($team !== null) {
-            $run = self::setTeam($player, $key, $team);
-        }
+            $run = DungeonRun::whereKey(self::run($player, $key)->id)->lockForUpdate()->firstOrFail();
+            $node = self::currentNode($player, $key, $run);
+            $room = (int) $node['room'];
 
-        $node = self::currentNode($player, $key, $run);
+            if (in_array($room, array_map('intval', (array) $run->cleared), true)) {
+                $message = match ($node['kind']) {
+                    'camp' => 'Ya has descansado en este campamento.',
+                    'gospel' => 'Ya leíste este fragmento.',
+                    default => 'Esta sala ya está resuelta.',
+                };
 
-        $outcome = match ($node['kind']) {
-            'trap' => self::resolveTrap($player, $run, $node, $action),
-            'altar' => self::resolveAltar($player, $run, $node, $action),
-            'camp' => self::resolveCamp($player, $run, $node, $action),
-            'treasure' => self::resolveTreasure($player, $run, $node, $action),
-            'gospel' => self::resolveGospel($player, $run, $node, $action),
-            default => throw ValidationException::withMessages([
-                'action' => 'Este paso se resuelve con una batalla.',
-            ]),
-        };
+                throw ValidationException::withMessages(['action' => $message]);
+            }
 
-        self::markRoomCleared($run, (int) $node['room']);
+            if ($team !== null) {
+                $run = self::setTeam($player, $key, $team);
+            }
 
-        return [
-            'outcome' => $outcome,
-            'run_floor' => (int) $run->floor,
-            'best_floor' => self::bestFloor($player, $key),
-            'room' => (int) $run->room,
-            'team' => self::normalizeIds($run->team),
-            'vitals' => self::vitalsFor($player, $run),
-            'blessing' => (int) $run->blessing,
-            'encounter' => self::currentNode($player, $key, $run),
-            'map' => self::mapView($key, $run),
-            'player' => ['grace' => $player->grace],
-        ];
+            $outcome = match ($node['kind']) {
+                'trap' => self::resolveTrap($player, $run, $node, $action),
+                'altar' => self::resolveAltar($player, $run, $node, $action),
+                'camp' => self::resolveCamp($player, $run, $node, $action),
+                'treasure' => self::resolveTreasure($player, $run, $node, $action),
+                'gospel' => self::resolveGospel($player, $run, $node, $action),
+                default => throw ValidationException::withMessages([
+                    'action' => 'Este paso se resuelve con una batalla.',
+                ]),
+            };
+
+            self::markRoomCleared($run, $room);
+
+            return [
+                'outcome' => $outcome,
+                'run_floor' => (int) $run->floor,
+                'best_floor' => self::bestFloor($player, $key),
+                'room' => (int) $run->room,
+                'team' => self::normalizeIds($run->team),
+                'vitals' => self::vitalsFor($player, $run),
+                'blessing' => (int) $run->blessing,
+                'encounter' => self::currentNode($player, $key, $run),
+                'map' => self::mapView($key, $run),
+                'player' => ['grace' => $player->grace],
+            ];
+        });
     }
 
     /**

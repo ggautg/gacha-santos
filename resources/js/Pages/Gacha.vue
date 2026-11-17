@@ -94,10 +94,14 @@ function closeReveal() {
                 type="button"
                 class="orar-mode"
                 :disabled="singleDisabled"
+                :aria-busy="loading === 'single'"
                 @click="summon(1)"
             >
                 <span class="orar-mode-face">
-                    <span class="orar-mode-tag">Individual</span>
+                    <span class="orar-mode-tag">
+                        <span v-if="loading === 'single'" class="spin" aria-hidden="true">✦</span>
+                        {{ loading === 'single' ? 'Orando…' : 'Individual' }}
+                    </span>
                     <span class="orar-mode-title">Una oración</span>
                     <span class="orar-mode-sub">Un santo responde a tu llamada</span>
                     <span class="orar-mode-price">
@@ -110,10 +114,14 @@ function closeReveal() {
                 type="button"
                 class="orar-mode orar-mode--featured"
                 :disabled="tenDisabled"
+                :aria-busy="loading === 'ten'"
                 @click="summon(10)"
             >
                 <span class="orar-mode-face">
-                    <span class="orar-mode-tag">Destacado</span>
+                    <span class="orar-mode-tag">
+                        <span v-if="loading === 'ten'" class="spin" aria-hidden="true">✦</span>
+                        {{ loading === 'ten' ? 'Orando…' : 'Destacado' }}
+                    </span>
                     <span class="orar-mode-title">Diez oraciones</span>
                     <span class="orar-mode-sub">Garantiza al menos un 4★ o superior</span>
                     <span class="orar-mode-price">
@@ -125,7 +133,7 @@ function closeReveal() {
 
         <div class="orar-pity">
             <div class="orar-pity-head">
-                <span>Pity 5★</span>
+                <span>Garantía 5★</span>
                 <strong>{{ store.pity }} / {{ pityMax }}</strong>
             </div>
             <div class="orar-pity-bar">

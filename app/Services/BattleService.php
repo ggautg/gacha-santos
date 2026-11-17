@@ -42,6 +42,15 @@ class BattleService
             ]);
         }
 
+        $floor = (int) $encounter['floor'];
+        $room = (int) $encounter['room'];
+
+        if (in_array($room, array_map('intval', (array) $run->cleared), true)) {
+            throw ValidationException::withMessages([
+                'battle' => 'Esta sala ya está resuelta.',
+            ]);
+        }
+
         // El equipo vive en el descenso y solo se edita en los campamentos.
         $team = DungeonRules::teamCopies($player, $run);
 
@@ -62,11 +71,11 @@ class BattleService
     private function resolve(Player $player, array $encounter, DungeonRun $run, string $dungeonKey, array $team): array
     {
         $floor = (int) $encounter['floor'];
+        $room = (int) $encounter['room'];
         $vitals = DungeonRules::vitalsFor($player, $run);
         $blessing = (int) $run->blessing;
         $units = [];
         $allyIds = [];
-        $teamIds = [];
 
         foreach ($team as $i => $copy) {
             $stats = $copy->stats();
@@ -105,7 +114,6 @@ class BattleService
             ];
 
             $allyIds[$id] = $copy->saint_id;
-            $teamIds[] = $copy->saint_id;
         }
 
         foreach ($encounter['mobs'] ?? [] as $index => $mob) {
@@ -230,17 +238,24 @@ class BattleService
 
         $log[] = ['t' => 'end', 'result' => $win ? 'win' : 'lose'];
 
-        return DB::transaction(function () use ($player, $encounter, $run, $floor, $dungeonKey, $units, $initial, $log, $win, $grace, $xp, $team, $allyIds, $teamIds) {
+        return DB::transaction(function () use ($player, $encounter, $run, $floor, $room, $dungeonKey, $units, $initial, $log, $win, $grace, $xp, $team, $allyIds) {
             /** @var Player $player */
             $player = Player::whereKey($player->id)->lockForUpdate()->firstOrFail();
 
             /** @var DungeonRun $run */
             $run = DungeonRun::whereKey($run->id)->lockForUpdate()->firstOrFail();
 
+            if ((int) $run->floor !== $floor
+                || (int) $run->room !== $room
+                || in_array($room, array_map('intval', (array) $run->cleared), true)) {
+                throw ValidationException::withMessages([
+                    'battle' => 'Esta sala ya está resuelta.',
+                ]);
+            }
+
             $dungeon = DungeonRules::get($dungeonKey);
 
             $player->grace += $grace;
-            $player->team = $teamIds;
             $win ? $player->wins++ : $player->losses++;
             $player->save();
 
@@ -295,7 +310,7 @@ class BattleService
                 'stage' => $floor,
                 'stage_name' => $encounter['name'],
                 'kind' => $encounter['kind'],
-                'room' => $encounter['room'],
+                'room' => (int) $state['map']['room'],
                 'dungeon' => $dungeonKey,
                 'dungeon_name' => $dungeon['name'],
                 'theme' => $dungeon['theme'] ?? $dungeonKey,
@@ -578,12 +593,14 @@ class BattleService
     {
         $alive = array_keys(array_filter($units, fn ($unit) => $unit['hp'] > 0));
 
-        usort($alive, function ($a, $b) use ($units) {
-            $speedA = $units[$a]['spd'] + mt_rand(0, 3);
-            $speedB = $units[$b]['spd'] + mt_rand(0, 3);
+        // Un sorteo por unidad y por ronda: el comparador debe ser estable.
+        $speeds = [];
 
-            return $speedB <=> $speedA;
-        });
+        foreach ($alive as $id) {
+            $speeds[$id] = $units[$id]['spd'] + mt_rand(0, 3);
+        }
+
+        usort($alive, fn (string $a, string $b): int => ($speeds[$b] <=> $speeds[$a]) ?: strcmp($a, $b));
 
         return $alive;
     }

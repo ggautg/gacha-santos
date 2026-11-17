@@ -32,7 +32,7 @@ const activate = () => {
         class="card"
         :class="{ 'is-locked': locked && !mystery, 'is-mystery': mystery, 'is-selected': selected }"
         :style="style"
-        :aria-label="mystery ? 'Santo velado, identidad oculta' : locked ? `Santo sin revelar: ${saint.name}` : `Ver ${saint.name}`"
+        :aria-label="mystery ? 'Santo velado, identidad oculta' : locked ? 'Santo sin revelar' : `Ver ${saint.name}`"
         :aria-pressed="interactive ? selected : undefined"
         @click="activate"
     >
@@ -48,7 +48,7 @@ const activate = () => {
         </div>
 
         <div class="card-info">
-            <span class="card-name">{{ mystery ? 'Santo velado' : saint.name }}</span>
+            <span class="card-name" :aria-hidden="locked || undefined">{{ mystery ? 'Santo velado' : saint.name }}</span>
             <span class="card-stars" aria-hidden="true">{{ stars }}</span>
             <span class="card-meta">
                 <span>{{ mystery ? 'Sin revelar' : locked ? 'Sin revelar' : saint.owned ? `Nv. ${saint.owned.level}` : saint.role ?? '' }}</span>

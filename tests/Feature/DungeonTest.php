@@ -205,6 +205,29 @@ class DungeonTest extends TestCase
         $this->assertSame($team, $player->fresh()->teamIds());
     }
 
+    public function test_a_cleared_combat_room_cannot_grant_rewards_twice(): void
+    {
+        $seed = $this->seedWithNeighbour(['battle']);
+        $player = $this->createPlayer(['grace' => 0]);
+        [$run] = $this->prepareRun($player, 1, 20, 6);
+        $run->seed = $seed;
+        $run->save();
+
+        $layout = DungeonRules::layout('pecados', $seed, 1);
+        $room = $this->neighbourOf($layout, 0, ['battle']);
+
+        $this->postJson('/mazmorras/pecados/mover', ['room' => $room])->assertOk();
+
+        $first = $this->postJson('/mazmorras/pecados/batalla');
+        $first->assertOk()->assertJsonPath('result', 'win');
+
+        $this->postJson('/mazmorras/pecados/batalla')
+            ->assertStatus(422)
+            ->assertJsonPath('errors.battle.0', 'Esta sala ya está resuelta.');
+
+        $this->assertSame($first->json('player.grace'), $player->fresh()->grace);
+    }
+
     public function test_defeating_the_hidden_boss_advances_to_a_new_floor(): void
     {
         $seed = 987654;
@@ -222,7 +245,8 @@ class DungeonTest extends TestCase
             ->assertJsonPath('result', 'win')
             ->assertJsonPath('kind', 'boss')
             ->assertJsonPath('run_floor', 2)
-            ->assertJsonPath('room', $layout['boss']);
+            ->assertJsonPath('room', 0)
+            ->assertJsonPath('map.room', 0);
 
         $fresh = $run->fresh();
 
@@ -289,6 +313,29 @@ class DungeonTest extends TestCase
             ->assertJsonPath('room', $room);
 
         $this->assertContains($room, $run->fresh()->cleared);
+        $this->assertSame(100 + $node['treasure'], $player->fresh()->grace);
+    }
+
+    public function test_a_treasure_room_cannot_be_opened_twice(): void
+    {
+        $seed = $this->seedWithNeighbour(['treasure']);
+        $player = $this->createPlayer(['grace' => 100]);
+        [$run] = $this->prepareRun($player, 1, 12);
+        $layout = DungeonRules::layout('pecados', $seed, 1);
+        $room = $this->neighbourOf($layout, 0, ['treasure']);
+        $node = DungeonRules::roomNode('pecados', $seed, 1, $room);
+
+        $run->seed = $seed;
+        $run->room = $room;
+        $run->cleared = [];
+        $run->save();
+
+        $this->postJson('/mazmorras/pecados/paso', ['action' => 'open'])->assertOk();
+
+        $this->postJson('/mazmorras/pecados/paso', ['action' => 'open'])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.action.0', 'Esta sala ya está resuelta.');
+
         $this->assertSame(100 + $node['treasure'], $player->fresh()->grace);
     }
 

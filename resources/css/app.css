@@ -37,7 +37,7 @@
     --gold-deep: #b98a1f;
     --parchment: #f2e6c9;
     --muted: #a79dcf;
-    --muted-2: #7d73a6;
+    --muted-2: #9a91c4;
     --crimson: #a3352f;
     --crimson-bright: #e05a4d;
     --cyan: #5bc0eb;
@@ -260,7 +260,7 @@ p {
     padding: 9px 12px;
     border: 2px solid transparent;
     font-family: var(--font-pixel);
-    font-size: 9px;
+    font-size: 12px;
     letter-spacing: 0.5px;
     color: var(--muted);
     transition: color 0.15s, border-color 0.15s, background 0.15s;
@@ -298,7 +298,7 @@ p {
     white-space: nowrap;
     padding: 0 4px;
     font-family: var(--font-pixel);
-    font-size: 8px;
+    font-size: 12px;
     letter-spacing: 0.5px;
     color: var(--muted);
 }
@@ -319,7 +319,7 @@ p {
     background: linear-gradient(180deg, #2a2148, #171028);
     box-shadow: 0 0 0 2px var(--ink-deep), inset 0 0 16px rgba(242, 201, 76, 0.12);
     font-family: var(--font-pixel);
-    font-size: 10px;
+    font-size: 12px;
     color: var(--gold-bright);
 }
 
@@ -401,7 +401,7 @@ p {
 .theme-picker-label {
     margin: 12px 0 6px;
     font-family: var(--font-pixel);
-    font-size: 8px;
+    font-size: 12px;
     letter-spacing: 1.5px;
     text-transform: uppercase;
     color: var(--gold);
@@ -432,7 +432,7 @@ p {
 
 .theme-option strong {
     font-family: var(--font-pixel);
-    font-size: 8px;
+    font-size: 12px;
     letter-spacing: 0.5px;
 }
 
@@ -497,7 +497,7 @@ p {
 
 .theme-font-copy strong {
     font-family: var(--font-pixel);
-    font-size: 8px;
+    font-size: 12px;
     letter-spacing: 0.5px;
 }
 
@@ -527,7 +527,7 @@ p {
 
 .page-kicker {
     font-family: var(--font-pixel);
-    font-size: 9px;
+    font-size: 12px;
     letter-spacing: 2px;
     color: var(--gold);
     text-transform: uppercase;
@@ -589,7 +589,7 @@ p {
     align-items: center;
     gap: 10px;
     font-family: var(--font-pixel);
-    font-size: 10px;
+    font-size: 12px;
     letter-spacing: 1px;
     color: var(--gold-bright);
 }
@@ -626,7 +626,7 @@ p {
 
 .eyebrow {
     font-family: var(--font-pixel);
-    font-size: 8px;
+    font-size: 12px;
     letter-spacing: 1.5px;
     color: var(--muted-2);
     text-transform: uppercase;
@@ -657,7 +657,7 @@ p {
     background: var(--btn-bg);
     color: var(--btn-color);
     font-family: var(--font-pixel);
-    font-size: 9px;
+    font-size: 12px;
     line-height: 1.6;
     letter-spacing: 0.6px;
     text-align: center;
@@ -721,12 +721,12 @@ p {
 
 .btn--sm {
     padding: 10px 12px;
-    font-size: 8px;
+    font-size: 12px;
 }
 
 .btn--lg {
     padding: 18px 22px;
-    font-size: 10px;
+    font-size: 12px;
 }
 
 .btn--block {
@@ -889,7 +889,7 @@ p {
 
 .card-stars {
     color: var(--gold);
-    font-size: 10px;
+    font-size: 12px;
     letter-spacing: 1px;
     line-height: 1;
     text-shadow: 0 0 8px rgba(242, 201, 76, 0.55);
@@ -1001,7 +1001,7 @@ p {
     background: var(--gold);
     color: #2a1c05;
     font-family: var(--font-pixel);
-    font-size: 9px;
+    font-size: 12px;
 }
 
 .card-grid {
@@ -1127,7 +1127,7 @@ p {
 .hero-banner-label {
     margin-bottom: 8px;
     font-family: var(--font-pixel);
-    font-size: 8px;
+    font-size: 12px;
     letter-spacing: 1px;
     color: var(--muted-2);
     text-transform: uppercase;
@@ -1179,7 +1179,7 @@ p {
 }
 
 .gacha-panel h2 {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--gold-bright);
 }
 
@@ -1240,7 +1240,7 @@ p {
 
 .offer-title {
     font-family: var(--font-pixel);
-    font-size: 9px;
+    font-size: 12px;
     letter-spacing: 0.5px;
 }
 
@@ -1256,7 +1256,7 @@ p {
     padding: 6px 8px;
     border: 2px solid currentColor;
     font-family: var(--font-pixel);
-    font-size: 9px;
+    font-size: 12px;
     white-space: nowrap;
 }
 
@@ -1271,7 +1271,7 @@ p {
 .free-tag {
     color: var(--green);
     font-family: var(--font-pixel);
-    font-size: 8px;
+    font-size: 12px;
 }
 
 .pity-box {
@@ -1287,7 +1287,7 @@ p {
     gap: 10px;
     margin-bottom: 8px;
     font-family: var(--font-pixel);
-    font-size: 8px;
+    font-size: 12px;
     letter-spacing: 0.5px;
     color: var(--muted);
 }
@@ -1322,7 +1322,7 @@ p {
 
 .rate-row strong {
     font-family: var(--font-pixel);
-    font-size: 8px;
+    font-size: 12px;
     font-weight: 400;
     color: var(--parchment);
 }
@@ -1343,7 +1343,7 @@ p {
     display: flex;
     align-items: center;
     gap: 10px;
-    font-size: 11px;
+    font-size: 12px;
     color: var(--parchment);
 }
 
@@ -1358,7 +1358,7 @@ p {
 
 .section-link {
     font-family: var(--font-pixel);
-    font-size: 8px;
+    font-size: 12px;
     color: var(--muted);
     letter-spacing: 0.5px;
 }
@@ -1441,7 +1441,7 @@ p {
 
 .progress-item .count {
     font-family: var(--font-pixel);
-    font-size: 8px;
+    font-size: 12px;
     text-align: right;
     color: var(--parchment);
 }
@@ -1510,7 +1510,7 @@ p {
     background: rgba(9, 6, 20, 0.4);
     color: var(--muted);
     font-family: var(--font-pixel);
-    font-size: 8px;
+    font-size: 12px;
     letter-spacing: 0.4px;
     cursor: pointer;
     transition: all 0.15s;
@@ -1576,7 +1576,7 @@ p {
     background: rgba(9, 6, 20, 0.4);
     color: var(--muted);
     font-family: var(--font-pixel);
-    font-size: 8px;
+    font-size: 12px;
     cursor: pointer;
     user-select: none;
 }
@@ -1626,7 +1626,7 @@ p {
     display: block;
     margin-bottom: 6px;
     font-family: var(--font-pixel);
-    font-size: 10px;
+    font-size: 12px;
     color: var(--muted);
 }
 
@@ -1765,7 +1765,7 @@ p {
 
 .stat-row .stat-value {
     font-family: var(--font-pixel);
-    font-size: 8px;
+    font-size: 12px;
     text-align: right;
     color: var(--parchment);
 }
@@ -1782,7 +1782,7 @@ p {
     gap: 8px;
     margin-bottom: 6px;
     font-family: var(--font-pixel);
-    font-size: 9px;
+    font-size: 12px;
     color: var(--cyan);
 }
 
@@ -1808,13 +1808,13 @@ p {
 
 .owned-level {
     font-family: var(--font-pixel);
-    font-size: 10px;
+    font-size: 12px;
     color: var(--gold-bright);
 }
 
 .owned-power {
     font-family: var(--font-pixel);
-    font-size: 8px;
+    font-size: 12px;
     color: var(--muted);
 }
 
@@ -1865,7 +1865,7 @@ p {
     display: block;
     margin-bottom: 4px;
     font-family: var(--font-pixel);
-    font-size: 9px;
+    font-size: 12px;
     color: #c9bdf2;
 }
 
@@ -1984,7 +1984,7 @@ p {
     background: #2a0f14;
     color: #ffd9d1;
     font-family: var(--font-pixel);
-    font-size: 8px;
+    font-size: 12px;
     cursor: pointer;
 }
 
@@ -2029,7 +2029,7 @@ p {
 .hint .hint-icon {
     color: var(--cyan);
     font-family: var(--font-pixel);
-    font-size: 9px;
+    font-size: 12px;
     padding-top: 3px;
 }
 
@@ -2122,7 +2122,7 @@ p {
     background: rgba(9, 6, 20, 0.75);
     color: var(--muted-2);
     font-family: var(--font-pixel);
-    font-size: 11px;
+    font-size: 12px;
 }
 
 .dungeon-body {
@@ -2285,7 +2285,7 @@ p {
 
 .stage-num {
     font-family: var(--font-pixel);
-    font-size: 8px;
+    font-size: 12px;
     color: var(--gold);
 }
 
@@ -2596,7 +2596,7 @@ p {
     border: 2px solid var(--line);
     background: rgba(9, 6, 20, 0.82);
     font-family: var(--font-pixel);
-    font-size: 8px;
+    font-size: 12px;
     letter-spacing: 0.5px;
     color: var(--gold-bright);
     white-space: nowrap;
@@ -2677,7 +2677,7 @@ p {
 .log-entry.is-round {
     margin-top: 4px;
     font-family: var(--font-pixel);
-    font-size: 8px;
+    font-size: 12px;
     color: var(--gold);
     letter-spacing: 1px;
 }
@@ -2824,7 +2824,7 @@ p {
     position: relative;
     z-index: 2;
     font-family: var(--font-pixel);
-    font-size: 11px;
+    font-size: 12px;
     letter-spacing: 2px;
     color: var(--gold-bright);
     text-shadow: 0 3px 0 var(--ink-deep), 0 0 30px rgba(242, 201, 76, 0.4);
@@ -2909,7 +2909,27 @@ p {
     font-size: 17px;
     line-height: 1.25;
     animation: toast-in 0.25s ease both;
+    cursor: default;
+}
+
+.toast-message {
+    flex: 1;
+}
+
+.toast-close {
+    flex-shrink: 0;
+    padding: 0 2px;
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font-size: 18px;
+    line-height: 1;
     cursor: pointer;
+}
+
+.toast-close:hover,
+.toast-close:focus-visible {
+    color: var(--gold-bright);
 }
 
 .toast::before {
@@ -3279,7 +3299,7 @@ p {
     .grace-chip {
         height: 34px;
         padding: 0 9px;
-        font-size: 9px;
+        font-size: 12px;
     }
 
     .icon-btn {
@@ -3289,7 +3309,7 @@ p {
 
     .nav-link {
         padding: 8px 9px;
-        font-size: 8px;
+        font-size: 12px;
     }
 
     .nav-link span {
@@ -4000,13 +4020,13 @@ html[data-theme] .dungeon-head .page-kicker {
 
 .launcher-play-copy strong {
     font-family: var(--font-pixel);
-    font-size: 10px;
+    font-size: 12px;
     letter-spacing: 2px;
     text-transform: uppercase;
 }
 
 .launcher-play-copy span {
-    font-size: 11px;
+    font-size: 12px;
     letter-spacing: 0.6px;
     text-transform: uppercase;
     opacity: 0.66;
@@ -4031,7 +4051,7 @@ html[data-theme] .dungeon-head .page-kicker {
     align-items: center;
     padding: 0 18px;
     font-family: var(--font-pixel);
-    font-size: 8px;
+    font-size: 12px;
     letter-spacing: 1.5px;
     text-transform: uppercase;
     white-space: nowrap;
@@ -4158,7 +4178,7 @@ html[data-theme] .dungeon-head .page-kicker {
 .profile-dropdown-id strong {
     overflow: hidden;
     font-family: var(--font-pixel);
-    font-size: 8px;
+    font-size: 12px;
     letter-spacing: 0.5px;
     color: var(--parchment);
     text-overflow: ellipsis;
@@ -4171,7 +4191,7 @@ html[data-theme] .dungeon-head .page-kicker {
 }
 
 .grace-chip--sm {
-    font-size: 8px;
+    font-size: 12px;
 }
 
 .profile-dropdown-label {
@@ -4322,7 +4342,7 @@ html[data-theme] .dungeon-head .page-kicker {
     max-width: 130px;
     overflow: hidden;
     font-family: var(--font-pixel);
-    font-size: 8px;
+    font-size: 12px;
     letter-spacing: 0.5px;
     color: var(--parchment);
     text-overflow: ellipsis;
@@ -4477,7 +4497,7 @@ html[data-theme] .dungeon-head .page-kicker {
 
 .client-hero-kicker {
     font-family: var(--font-pixel);
-    font-size: 8px;
+    font-size: 12px;
     letter-spacing: 2px;
     text-transform: uppercase;
     color: var(--gold);
@@ -4549,7 +4569,7 @@ html[data-theme] .dungeon-head .page-kicker {
     background: rgba(9, 6, 20, 0.55);
     color: var(--parchment);
     font-family: var(--font-pixel);
-    font-size: 8px;
+    font-size: 12px;
     letter-spacing: 1px;
     text-transform: uppercase;
     text-decoration: none;
@@ -4661,7 +4681,7 @@ html[data-theme] .dungeon-head .page-kicker {
     align-items: center;
     gap: 7px;
     font-family: var(--font-pixel);
-    font-size: 9px;
+    font-size: 12px;
     color: var(--gold-bright);
 }
 
@@ -4728,7 +4748,7 @@ html[data-theme] .dungeon-head .page-kicker {
 
 .summon-card-title {
     font-family: var(--font-pixel);
-    font-size: 10px;
+    font-size: 12px;
     line-height: 1.5;
     letter-spacing: 0.5px;
     color: var(--parchment);
@@ -4747,7 +4767,7 @@ html[data-theme] .dungeon-head .page-kicker {
     gap: 6px;
     margin-top: 4px;
     font-family: var(--font-pixel);
-    font-size: 10px;
+    font-size: 12px;
     color: var(--gold-bright);
 }
 
@@ -4849,7 +4869,7 @@ html[data-theme] .dungeon-head .page-kicker {
 .mission-copy strong {
     display: block;
     font-family: var(--font-pixel);
-    font-size: 8px;
+    font-size: 12px;
     letter-spacing: 0.4px;
     color: var(--parchment);
 }
@@ -4883,7 +4903,7 @@ html[data-theme] .dungeon-head .page-kicker {
 
 .mission-count {
     font-family: var(--font-pixel);
-    font-size: 8px;
+    font-size: 12px;
     color: var(--gold);
 }
 
@@ -5251,7 +5271,7 @@ html[data-theme] .client-module {
 
 .run-kicker {
     font-family: var(--font-pixel);
-    font-size: 8px;
+    font-size: 12px;
     letter-spacing: 1.6px;
     text-transform: uppercase;
     color: var(--muted-2);
@@ -5901,7 +5921,7 @@ html[data-theme] .client-module {
 
 .run-team-power strong {
     font-family: var(--font-pixel);
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 400;
     color: var(--gold-bright);
 }
@@ -5949,7 +5969,7 @@ html[data-theme] .client-module {
     list-style: none;
     padding: 12px 16px;
     font-family: var(--font-pixel);
-    font-size: 8px;
+    font-size: 12px;
     letter-spacing: 0.8px;
     text-transform: uppercase;
     color: var(--gold);
@@ -6032,7 +6052,7 @@ html[data-theme] .client-module {
 
 .run-result-copy strong {
     font-family: var(--font-pixel);
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 400;
     color: var(--gold-bright);
     text-shadow: 0 0 18px rgba(242, 201, 76, 0.35);
@@ -6096,7 +6116,7 @@ html:is([data-font='clasica'], [data-font='rubrica']) .page-lead {
 }
 
 html:is([data-font='clasica'], [data-font='rubrica']) :is(.page-kicker, .eyebrow, .run-kicker, .map-board-label, .mini-node-tag) {
-    font-size: 11px;
+    font-size: 12px;
     letter-spacing: 1.4px;
 }
 
@@ -6140,7 +6160,7 @@ html:is([data-font='clasica'], [data-font='rubrica']) .chip {
 
 
 html:is([data-font='clasica'], [data-font='rubrica']) :is(.recent-item .recent-meta, .progress-item .label, .progress-item .count) {
-    font-size: 11px;
+    font-size: 12px;
     letter-spacing: 0.2px;
 }
 
@@ -6156,7 +6176,7 @@ html:is([data-font='clasica'], [data-font='rubrica']) :is(.fighter-name, .fighte
 }
 
 html:is([data-font='clasica'], [data-font='rubrica']) .run-stat {
-    font-size: 10px;
+    font-size: 12px;
     letter-spacing: 0.6px;
 }
 
@@ -6179,15 +6199,15 @@ html:is([data-font='clasica'], [data-font='rubrica']) :is(.run-target-copy p, .r
 }
 
 html:is([data-font='clasica'], [data-font='rubrica']) .mini-node-tag {
-    font-size: 9px;
+    font-size: 12px;
 }
 
 html:is([data-font='clasica'], [data-font='rubrica']) .map-legend-item {
-    font-size: 10px;
+    font-size: 12px;
 }
 
 html:is([data-font='clasica'], [data-font='rubrica']) .map-board-label {
-    font-size: 10px;
+    font-size: 12px;
 }
 
 html:is([data-font='clasica'], [data-font='rubrica']) .run-target-copy h3 {
@@ -6224,7 +6244,7 @@ html:is([data-font='clasica'], [data-font='rubrica']) .run-back {
 }
 
 html:is([data-font='clasica'], [data-font='rubrica']) :is(.launcher-tab, .nav-link, .theme-font-copy strong) {
-    font-size: 11px;
+    font-size: 12px;
     letter-spacing: 0.4px;
 }
 
@@ -6343,7 +6363,7 @@ html:is([data-font='clasica'], [data-font='rubrica']) .card-stars {
 }
 
 html:is([data-font='clasica'], [data-font='rubrica']) .slot-level {
-    font-size: 11px;
+    font-size: 12px;
     letter-spacing: 0.1px;
 }
 
@@ -6385,7 +6405,7 @@ html:is([data-font='clasica'], [data-font='rubrica']) .mission-copy strong {
 }
 
 .mz-kicker {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
     letter-spacing: 3px;
     text-transform: uppercase;
@@ -6560,7 +6580,7 @@ html:is([data-font='clasica'], [data-font='rubrica']) .mission-copy strong {
 }
 
 .mz-dungeon-kicker {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
     letter-spacing: 3px;
     text-transform: uppercase;
@@ -6885,7 +6905,7 @@ html:is([data-font='clasica'], [data-font='rubrica']) .mission-copy strong {
     z-index: 2;
     margin: 0;
     max-width: min(62%, 460px);
-    font-size: 11px;
+    font-size: 12px;
     letter-spacing: 0.6px;
     color: rgba(240, 230, 210, 0.62);
     text-shadow: 0 1px 4px #000;
@@ -6910,7 +6930,7 @@ html:is([data-font='clasica'], [data-font='rubrica']) .mission-copy strong {
     display: flex;
     gap: 3px;
     font-family: var(--font-pixel);
-    font-size: 8px;
+    font-size: 12px;
     line-height: 1;
     letter-spacing: 1px;
 }
@@ -6951,7 +6971,7 @@ html:is([data-font='clasica'], [data-font='rubrica']) .mission-copy strong {
     inset: 0;
     display: grid;
     place-items: center;
-    font-size: 8px;
+    font-size: 12px;
     line-height: 1;
     color: #1a1205;
     transform-origin: 50% 50%;
@@ -6963,7 +6983,7 @@ html:is([data-font='clasica'], [data-font='rubrica']) .mission-copy strong {
     gap: 6px;
     margin: 0;
     font-family: var(--font-pixel);
-    font-size: 8px;
+    font-size: 12px;
     line-height: 1.2;
     letter-spacing: 0.5px;
     text-transform: uppercase;
@@ -6986,7 +7006,7 @@ html:is([data-font='clasica'], [data-font='rubrica']) .mission-copy strong {
     border: 1px solid rgba(200, 170, 110, 0.35);
     background: rgba(4, 12, 22, 0.84);
     clip-path: var(--mz-cut-sm);
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
     letter-spacing: 1.4px;
     text-transform: uppercase;
@@ -7276,7 +7296,7 @@ html:is([data-font='clasica'], [data-font='rubrica']) .mission-copy strong {
     top: calc(100% + 4px);
     left: 50%;
     transform: translateX(-50%);
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 800;
     letter-spacing: 1.5px;
     text-transform: uppercase;
@@ -7540,7 +7560,7 @@ html:is([data-font='clasica'], [data-font='rubrica']) .mission-copy strong {
 }
 
 .mz-slot-text {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--mz-muted);
 }
 
@@ -7554,7 +7574,7 @@ html:is([data-font='clasica'], [data-font='rubrica']) .mission-copy strong {
     border: 1px solid var(--mz-red);
     background: #2a0a10;
     color: #ffd0d6;
-    font-size: 11px;
+    font-size: 12px;
     line-height: 1;
     cursor: pointer;
 }
@@ -7816,7 +7836,7 @@ html:is([data-font='clasica'], [data-font='rubrica']) .mission-copy strong {
 }
 
 .mz-fighter-lv {
-    font-size: 11px;
+    font-size: 12px;
     letter-spacing: 1px;
     text-transform: uppercase;
     color: var(--mz-muted);
@@ -8066,7 +8086,7 @@ html:is([data-font='clasica'], [data-font='rubrica']) .mission-copy strong {
     min-width: 20px;
     padding: 1px 6px;
     border: 1px solid rgba(200, 170, 110, 0.5);
-    font-size: 11px;
+    font-size: 12px;
     text-align: center;
 }
 
@@ -8235,7 +8255,7 @@ html:is([data-font='clasica'], [data-font='rubrica']) .mission-copy strong {
 }
 
 .orar-mode-tag {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
     letter-spacing: 3px;
     text-transform: uppercase;
@@ -8370,4 +8390,55 @@ html:is([data-font='clasica'], [data-font='rubrica']) .mission-copy strong {
     .orar-title {
         font-size: 34px;
     }
+}
+
+/* --------------------------------------------------------------------------
+   Ajustes finales: contraste, foco y coherencia de temas
+   -------------------------------------------------------------------------- */
+
+html[data-theme] {
+    --muted-2: color-mix(in srgb, var(--muted) 70%, var(--parchment));
+    --gold-soft: color-mix(in srgb, var(--gold) 30%, transparent);
+    --gold-faint: color-mix(in srgb, var(--gold) 14%, transparent);
+}
+
+:focus-visible {
+    outline: 3px solid var(--gold-bright);
+    outline-offset: 2px;
+}
+
+.nav-link.is-active,
+.hero-copy h1,
+.orar-title,
+.mz-title,
+.mz-hub-title {
+    text-shadow: 0 2px 0 var(--ink-deep), 0 0 24px var(--gold-soft);
+}
+
+.btn--gold,
+.hero-art .card,
+.reveal-card.is-five .card {
+    box-shadow: 0 6px 0 var(--gold-deep), 0 0 32px var(--gold-soft),
+        inset 0 0 0 2px color-mix(in srgb, var(--gold-bright) 35%, transparent);
+}
+
+/* Mazmorras y Orar siguen la paleta elegida en el selector de temas. */
+.mz,
+.mz-hub {
+    --mz-gold: var(--gold);
+    --mz-gold-hi: var(--gold-bright);
+    --mz-teal: var(--cyan);
+    --mz-muted: var(--muted);
+}
+
+.orar {
+    --orar-gold: var(--gold);
+    --orar-gold-hi: var(--gold-bright);
+    --orar-teal: var(--cyan);
+    --orar-muted: var(--muted);
+    --orar-panel: var(--panel);
+    background:
+        radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--cyan) 18%, transparent), transparent 60%),
+        radial-gradient(ellipse at 50% 100%, var(--gold-faint), transparent 55%),
+        linear-gradient(180deg, var(--ink), var(--ink-deep));
 }

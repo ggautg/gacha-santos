@@ -196,6 +196,7 @@ function focusRoster() {
                         :tabindex="slot ? undefined : 0"
                         @click="!slot && focusRoster()"
                         @keydown.enter="!slot && focusRoster()"
+                        @keydown.space.prevent="!slot && focusRoster()"
                     >
                         <template v-if="slot">
                             <button
