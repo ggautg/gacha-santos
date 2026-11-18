@@ -10,8 +10,12 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
+/**
+ * Equipo del jugador: selección de hasta tres santos y potencia total.
+ */
 class TeamController extends Controller
 {
+    /** Muestra la plantilla disponible y el equipo seleccionado. */
     public function index(Request $request)
     {
         /** @var Player $player */
@@ -42,6 +46,7 @@ class TeamController extends Controller
         ]);
     }
 
+    /** Guarda el equipo validando que los santos pertenezcan al jugador. */
     public function save(Request $request)
     {
         /** @var Player $player */

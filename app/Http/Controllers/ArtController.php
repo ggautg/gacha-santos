@@ -11,6 +11,7 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class ArtController extends Controller
 {
+    /** Devuelve el retrato pixel-art del santo como SVG. */
     public function saint(Saint $saint): Response
     {
         return $this->svg(
@@ -18,11 +19,13 @@ class ArtController extends Controller
         );
     }
 
+    /** Devuelve el arte de batalla del santo como SVG. */
     public function battle(Saint $saint): Response
     {
         return $this->svg(PixelArt::battle($saint->art, '', $saint->name));
     }
 
+    /** Devuelve el arte del enemigo indicado, o 404 si la clave no existe. */
     public function foe(string $key): Response
     {
         abort_unless(PixelArt::hasFoe($key), 404);
@@ -30,11 +33,13 @@ class ArtController extends Controller
         return $this->svg(PixelArt::foe($key));
     }
 
+    /** Devuelve el arte de la carta velada como SVG. */
     public function mystery(): Response
     {
         return $this->svg(PixelArt::mystery());
     }
 
+    /** Envía el SVG con caché inmutable y cabeceras de tipo seguras. */
     private function svg(string $svg): Response
     {
         return response($svg, 200, [

@@ -5,6 +5,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * Batalla librada por un jugador, con resultado, recompensas y crónica.
+ *
+ * El campo `log` se serializa como array para reconstruir la animación
+ * del combate en el frontend. `dungeon` distingue los duelos del santuario
+ * de los encuentros dentro de una mazmorra.
+ */
 class Battle extends Model
 {
     protected $fillable = [
@@ -19,6 +26,7 @@ class Battle extends Model
         'log' => 'array',
     ];
 
+    /** Jugador que disputó la batalla. */
     public function player(): BelongsTo
     {
         return $this->belongsTo(Player::class);

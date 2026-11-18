@@ -5,8 +5,15 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * Catálogo de santos: identidad, rareza, atributos y habilidad.
+ *
+ * Los atributos `virtud`, `fe`, `caridad` y `milagro` alimentan tanto la
+ * potencia orientativa como las estadísticas por nivel y copias.
+ */
 class Saint extends Model
 {
+    /** Etiqueta, color y estrellas de cada rareza soportada. */
     public const RARITIES = [
         1 => ['label' => 'Común', 'color' => '#9aa5b1', 'stars' => 1],
         2 => ['label' => 'Raro', 'color' => '#5bc0eb', 'stars' => 2],
@@ -32,16 +39,19 @@ class Saint extends Model
         'skill_power' => 'integer',
     ];
 
+    /** Ejemplares de este santo repartidos entre los jugadores. */
     public function copies(): HasMany
     {
         return $this->hasMany(SaintCopy::class);
     }
 
+    /** Nombre de la rareza, por ejemplo "Milagroso". */
     public function rarityLabel(): string
     {
         return self::RARITIES[$this->rarity]['label'];
     }
 
+    /** Color asociado a la rareza, usado en cartas y fichas. */
     public function rarityColor(): string
     {
         return self::RARITIES[$this->rarity]['color'];
@@ -60,6 +70,11 @@ class Saint extends Model
         );
     }
 
+    /**
+     * Estadísticas de combate para un nivel y número de copias.
+     *
+     * @return array{hp: int, atk: int, def: int, spd: int}
+     */
     public function statsForLevel(int $level, int $copies = 1): array
     {
         $growth = 1 + 0.06 * ($level - 1);

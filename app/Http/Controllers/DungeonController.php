@@ -14,8 +14,15 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
+/**
+ * Punto de entrada HTTP de las mazmorras: listado, partida y acciones.
+ *
+ * Valida cada petición y delega las reglas en `DungeonRules` y `BattleService`.
+ * Los errores se devuelven siempre con mensajes en español.
+ */
 class DungeonController extends Controller
 {
+    /** Lista las mazmorras visibles con su desbloqueo y avance. */
     public function index(Request $request)
     {
         /** @var Player $player */
@@ -69,6 +76,7 @@ class DungeonController extends Controller
         ]);
     }
 
+    /** Muestra la partida actual, el mapa, el equipo y el historial. */
     public function show(Request $request, string $dungeon)
     {
         abort_unless(DungeonRules::isVisible($dungeon), 404);
@@ -135,6 +143,7 @@ class DungeonController extends Controller
         ]);
     }
 
+    /** Resuelve el combate de la sala actual y devuelve el resultado. */
     public function fight(Request $request, BattleService $battles, string $dungeon)
     {
         abort_unless(DungeonRules::isVisible($dungeon), 404);
@@ -151,6 +160,7 @@ class DungeonController extends Controller
         return response()->json($result);
     }
 
+    /** Traslada al jugador a otra sala del mapa y devuelve el nuevo estado. */
     public function move(Request $request, string $dungeon)
     {
         abort_unless(DungeonRules::isVisible($dungeon), 404);
@@ -188,6 +198,10 @@ class DungeonController extends Controller
         ]);
     }
 
+    /**
+     * Resuelve una acción de sala: descansar, curar, bendecir, cruzar,
+     * evitar, abrir o leer.
+     */
     public function step(Request $request, string $dungeon)
     {
         abort_unless(DungeonRules::isVisible($dungeon), 404);
@@ -224,6 +238,7 @@ class DungeonController extends Controller
         ]);
     }
 
+    /** Guarda el equipo de hasta tres santos para la mazmorra. */
     public function team(Request $request, string $dungeon)
     {
         abort_unless(DungeonRules::isVisible($dungeon), 404);
@@ -253,6 +268,7 @@ class DungeonController extends Controller
         ]);
     }
 
+    /** Reinicia la partida con una grieta nueva y vuelve al listado. */
     public function restart(Request $request, string $dungeon)
     {
         abort_unless(DungeonRules::isVisible($dungeon), 404);
@@ -271,6 +287,7 @@ class DungeonController extends Controller
             ->with('success', 'Has descendido por una grieta nueva: el elenco de esta mazmorra ha cambiado.');
     }
 
+    /** Convierte una excepción de validación en JSON con mensajes en español. */
     private function validationError(ValidationException $exception): JsonResponse
     {
         return response()->json([

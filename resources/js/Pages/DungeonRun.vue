@@ -1,6 +1,7 @@
 <script setup>
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
+import BattleFighter from '../Components/BattleFighter.vue';
 import ConfirmDialog from '../Components/ConfirmDialog.vue';
 import SaintCard from '../Components/SaintCard.vue';
 import { post, reportError } from '../lib/api';
@@ -392,22 +393,6 @@ function markWalking(delay = 900) {
 
 const maxHpOf = (unit) => unit.maxHp ?? unit.hp ?? 1;
 const hpOf = (unit) => Math.max(0, hp[unit.id] ?? maxHpOf(unit));
-const hpPercent = (unit) => Math.round((hpOf(unit) / Math.max(1, maxHpOf(unit))) * 100);
-const shieldPercent = (unit) => Math.min(100, Math.round(((shields[unit.id] ?? 0) / Math.max(1, maxHpOf(unit))) * 100));
-
-function hpClass(unit) {
-    const percent = hpPercent(unit);
-
-    if (percent <= 25) {
-        return 'is-low';
-    }
-
-    if (percent <= 55) {
-        return 'is-mid';
-    }
-
-    return '';
-}
 
 function isDown(unit) {
     return down[unit.id] || hpOf(unit) <= 0;
@@ -423,10 +408,6 @@ function fighterClass(unit) {
 
 function unitName(id) {
     return allUnits.value.find((unit) => unit.id === id)?.short ?? id;
-}
-
-function floatFor(id) {
-    return floats[id];
 }
 
 function showFloat(id, text, type = 'dmg') {
@@ -1190,48 +1171,30 @@ const logClass = (entry) => {
 
                         <div class="mz-field">
                             <div class="mz-side-units">
-                                <div v-for="unit in allies" :key="unit.id" class="mz-fighter" :class="fighterClass(unit)">
-                                    <span
-                                        v-if="floatFor(unit.id)"
-                                        :key="floatFor(unit.id).key"
-                                        class="mz-float"
-                                        :class="{ 'is-heal': floatFor(unit.id).type === 'heal', 'is-shield': floatFor(unit.id).type === 'shield', 'is-crit': floatFor(unit.id).type === 'crit' }"
-                                    >
-                                        {{ floatFor(unit.id).text }}
-                                    </span>
-                                    <img :src="unit.sprite" :alt="unit.name" draggable="false" />
-                                    <span class="mz-fighter-name">{{ unit.short }}</span>
-                                    <span class="mz-fighter-lv">Nv. {{ unit.level }}</span>
-                                    <div class="mz-hp" :class="hpClass(unit)">
-                                        <span class="mz-hp-bar" :style="{ width: `${hpPercent(unit)}%` }"></span>
-                                        <span v-if="shields[unit.id]" class="mz-shield" :style="{ width: `${shieldPercent(unit)}%` }"></span>
-                                    </div>
-                                </div>
+                                <BattleFighter
+                                    v-for="unit in allies"
+                                    :key="unit.id"
+                                    :unit="unit"
+                                    :state="fighterClass(unit)"
+                                    :float-value="floats[unit.id] ?? null"
+                                    :hp-value="hp[unit.id] ?? unit.maxHp ?? unit.hp ?? 1"
+                                    :shield-value="shields[unit.id] ?? 0"
+                                    :level-label="`Nv. ${unit.level}`"
+                                />
                             </div>
 
                             <div class="mz-side-units mz-side-units--foe" :class="{ 'is-crowded': foes.length > 2 }">
-                                <div
+                                <BattleFighter
                                     v-for="(unit, index) in foes"
                                     :key="unit.id"
-                                    class="mz-fighter mz-fighter--foe"
-                                    :class="fighterClass(unit)"
-                                >
-                                    <span
-                                        v-if="floatFor(unit.id)"
-                                        :key="floatFor(unit.id).key"
-                                        class="mz-float"
-                                        :class="{ 'is-heal': floatFor(unit.id).type === 'heal', 'is-shield': floatFor(unit.id).type === 'shield', 'is-crit': floatFor(unit.id).type === 'crit' }"
-                                    >
-                                        {{ floatFor(unit.id).text }}
-                                    </span>
-                                    <img :src="unit.sprite" :alt="unit.name" draggable="false" />
-                                    <span class="mz-fighter-name">{{ unit.short }}</span>
-                                    <span class="mz-fighter-lv">{{ isBoss && index === 0 ? 'Jefe' : `Piso ${unit.level}` }}</span>
-                                    <div class="mz-hp" :class="hpClass(unit)">
-                                        <span class="mz-hp-bar" :style="{ width: `${hpPercent(unit)}%` }"></span>
-                                        <span v-if="shields[unit.id]" class="mz-shield" :style="{ width: `${shieldPercent(unit)}%` }"></span>
-                                    </div>
-                                </div>
+                                    :unit="unit"
+                                    :state="fighterClass(unit)"
+                                    :float-value="floats[unit.id] ?? null"
+                                    :hp-value="hp[unit.id] ?? unit.maxHp ?? unit.hp ?? 1"
+                                    :shield-value="shields[unit.id] ?? 0"
+                                    :level-label="isBoss && index === 0 ? 'Jefe' : `Piso ${unit.level}`"
+                                    foe
+                                />
                             </div>
                         </div>
                     </div>

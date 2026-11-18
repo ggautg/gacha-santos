@@ -31,7 +31,7 @@ php artisan db:show
 php artisan migrate:status
 ```
 
-Todas las migraciones deben aparecer como `Ran`.
+Todas las migraciones deben aparecer como `Ran`. Si el servicio `MySQL80` está detenido, Windows puede exigir privilegios de administrador: abre PowerShell como administrador y ejecuta `Start-Service MySQL80` (o `net start MySQL80`). Las credenciales no se repiten en esta documentación; la aplicación las lee de `.env`.
 
 ## Comandos habituales
 
@@ -71,7 +71,9 @@ docs/                 Documentación técnica
 
 ## Documentación
 
-- [Arquitectura backend](docs/arquitectura.md)
-- [Frontend y componentes](docs/frontend.md)
-- [Mazmorras](docs/mazmorras.md)
-- [Pruebas](docs/testing.md)
+- [Arquitectura backend](docs/arquitectura.md): capas, modelos y controladores documentados, contrato de errores y decisiones.
+- [Frontend y componentes](docs/frontend.md): componentes, contrato de utilidades, temas, accesibilidad y cambios de la revisión.
+- [Mazmorras](docs/mazmorras.md): flujo y endpoints del descenso.
+- [Pruebas](docs/testing.md): ejecución, cobertura y alcance de PHPUnit.
+
+La revisión completa queda registrada así: interfaz y mensajes en español (`docs/frontend.md`), movimiento y temas (`docs/frontend.md`), base de datos y comandos propios (`docs/arquitectura.md`), formularios y estados de carga (`docs/frontend.md`), componentización Vue (`docs/frontend.md`), documentación de modelos y controladores (`docs/arquitectura.md`) y verificación con PHPUnit (`docs/testing.md`). No se añadieron dependencias de Composer ni de npm.

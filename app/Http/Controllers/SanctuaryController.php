@@ -10,8 +10,12 @@ use App\Support\DungeonRules;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
+/**
+ * Pantalla de inicio: resumen del progreso y santos destacados.
+ */
 class SanctuaryController extends Controller
 {
+    /** Compone el resumen global que consume la vista del santuario. */
     public function index(Request $request)
     {
         /** @var Player $player */

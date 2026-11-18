@@ -10,8 +10,12 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
+/**
+ * Oraciones (gacha): pantalla de costes y probabilidades y resolución.
+ */
 class GachaController extends Controller
 {
+    /** Muestra la pantalla de oraciones con garantía, costes y probabilidades. */
     public function index(Request $request)
     {
         /** @var Player $player */
@@ -39,6 +43,7 @@ class GachaController extends Controller
         ]);
     }
 
+    /** Resuelve una invocación sencilla o múltiple y devuelve las cartas. */
     public function pull(Request $request, GachaService $gacha)
     {
         /** @var Player $player */

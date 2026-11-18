@@ -6,6 +6,11 @@ use App\Models\Player;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
+/**
+ * Herramienta de desarrollo para reiniciar la cuenta de prueba.
+ *
+ * La ruta solo se registra fuera de producción.
+ */
 class DevAccountController extends Controller
 {
     /**

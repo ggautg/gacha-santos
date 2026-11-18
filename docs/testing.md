@@ -27,6 +27,8 @@ La base de datos de pruebas debe estar disponible antes de ejecutar la suite. El
 
 Las pruebas se centran en comportamiento observable: respuestas HTTP, estado persistido y efectos económicos. No prueban detalles de implementación ni textos literales sin valor contractual.
 
+La suite es exclusivamente PHP (PHPUnit): no hay runner de Vue. Los cambios de frontend se comprueban con `npm run build` y con una revisión manual en el navegador (consola sin errores, foco de diálogos, temas y movimiento reducido). Los PHPDoc añadidos a modelos y controladores son documentación pura, por lo que no requieren pruebas nuevas: la última suite verde registró 53 pruebas y 1237 aserciones.
+
 ## Añadir una prueba
 
 1. Usa `php artisan make:test --phpunit NombreTest` para pruebas de feature.

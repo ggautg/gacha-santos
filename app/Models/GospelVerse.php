@@ -6,6 +6,12 @@ use Database\Factories\GospelVerseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * Versículo bíblico importado y mostrado como fragmento en las mazmorras.
+ *
+ * `book` guarda la clave configurada en `config/bible.php`, de modo que el
+ * nombre legible del libro se resuelve al formar la cita.
+ */
 class GospelVerse extends Model
 {
     /** @use HasFactory<GospelVerseFactory> */

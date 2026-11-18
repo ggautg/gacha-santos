@@ -11,8 +11,12 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
+/**
+ * Colección del jugador: catálogo, resumen por rareza y subida de nivel.
+ */
 class CollectionController extends Controller
 {
+    /** Muestra el catálogo con las cartas reveladas y veladas del jugador. */
     public function index(Request $request)
     {
         /** @var Player $player */
@@ -71,6 +75,12 @@ class CollectionController extends Controller
         ]);
     }
 
+    /**
+     * Sube de nivel un santo consumiendo Puntos de Fe dentro de una transacción.
+     *
+     * Bloquea la fila del jugador para evitar que peticiones paralelas gasten
+     * dos veces el mismo saldo.
+     */
     public function levelUp(Request $request, Saint $saint)
     {
         /** @var Player $player */

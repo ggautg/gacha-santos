@@ -10,6 +10,13 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
+/**
+ * Usuario autenticable de Laravel (reservado para tareas administrativas).
+ *
+ * El juego no usa login: la identidad de la sesión es `Player`. Los atributos
+ * sensibles se ocultan con `#[Hidden]` para que nunca se serialicen en las
+ * respuestas de la API.
+ */
 #[Fillable(['name', 'email', 'password'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
