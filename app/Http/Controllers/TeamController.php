@@ -54,7 +54,7 @@ class TeamController extends Controller
 
         $data = $request->validate([
             'team' => ['nullable', 'array', 'max:3'],
-            'team.*' => ['integer'],
+            'team.*' => ['integer', 'min:1'],
         ], ValidationMessages::rules(), ValidationMessages::attributes());
 
         $owned = SaintCopy::where('player_id', $player->id)

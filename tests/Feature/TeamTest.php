@@ -65,6 +65,15 @@ class TeamTest extends TestCase
             ->assertJsonPath('errors.team.0', 'Tu equipo necesita al menos un santo.');
     }
 
+    public function test_non_positive_saint_ids_are_rejected_with_a_spanish_message(): void
+    {
+        $this->createPlayer();
+
+        $this->postJson('/equipo', ['team' => [0]])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['team.0' => 'El valor debe ser al menos 1.']);
+    }
+
     private function ownedCopy(Player $player, int $level = 1): SaintCopy
     {
         $saint = Saint::whereNotIn('id', SaintCopy::where('player_id', $player->id)->pluck('saint_id'))

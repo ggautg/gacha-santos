@@ -80,6 +80,14 @@ html[data-theme='requiem'] {
 }
 
 html[data-theme] {
+    /* Colores de sala compartidos con dungeonNodes.js (mapa 2D y leyenda). */
+    --node-camp: #d7b878;
+    --node-altar: #7fe3d8;
+    --node-trap: #e0a45c;
+    --node-treasure: #f0d27a;
+    --node-gospel: #bfe5ff;
+    --node-boss: #ff4d6a;
+    --node-battle: #e84057;
     --bg-deep: color-mix(in srgb, var(--bg) 70%, #000);
     --surface-2: color-mix(in srgb, var(--surface) 84%, #fff);
     --surface-3: color-mix(in srgb, var(--surface) 70%, #fff);
@@ -201,6 +209,15 @@ button:disabled {
     color: var(--bg-deep);
 }
 
+/* La barra de carga de Inertia sigue siempre la paleta activa. */
+#nprogress .bar {
+    background: var(--accent) !important;
+}
+
+#nprogress .peg {
+    box-shadow: 0 0 10px var(--accent), 0 0 5px var(--accent) !important;
+}
+
 .sr-only {
     position: absolute;
     width: 1px;
@@ -275,7 +292,7 @@ button:disabled {
 .btn--danger {
     border-color: var(--danger);
     background: var(--danger);
-    color: #fff;
+    color: var(--bg-deep);
 }
 
 .modal-note {
@@ -1236,8 +1253,14 @@ button.card:hover {
     width: 190px;
     border: 0;
     background: none;
+    color: var(--text);
     font-size: 13px;
     outline: 0;
+}
+
+.search:focus-within {
+    outline: 3px solid var(--accent-bright);
+    outline-offset: 2px;
 }
 
 .toggle {
@@ -1699,6 +1722,11 @@ button.card:hover {
     color: var(--cyan);
 }
 
+.mz-dungeons {
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 20px;
+}
+
 .mz-dungeon {
     display: grid;
     border: 1px solid var(--line);
@@ -1715,8 +1743,8 @@ button.card:hover {
 .mz-dungeon-banner {
     position: relative;
     display: grid;
-    gap: 4px;
-    padding: 18px;
+    gap: 6px;
+    padding: 22px;
     border-bottom: 1px solid var(--line);
     background:
         linear-gradient(120deg, color-mix(in srgb, var(--mz-accent, var(--accent)) 28%, transparent), transparent 70%),
@@ -1724,7 +1752,7 @@ button.card:hover {
 }
 
 .mz-dungeon-name {
-    font-size: 22px;
+    font-size: 24px;
     color: var(--mz-accent, var(--accent-bright));
 }
 
@@ -1734,7 +1762,7 @@ button.card:hover {
 
 .mz-dungeon-sub {
     color: var(--muted);
-    font-size: 13px;
+    font-size: 14px;
 }
 
 .mz-dungeon-seal {
@@ -1747,8 +1775,8 @@ button.card:hover {
 
 .mz-dungeon-body {
     display: grid;
-    gap: 14px;
-    padding: 16px;
+    gap: 16px;
+    padding: 20px;
 }
 
 .mz-dungeon-next {
@@ -1760,13 +1788,13 @@ button.card:hover {
 .mz-dungeon-portrait {
     display: grid;
     place-items: center;
-    width: 56px;
-    height: 56px;
+    width: 64px;
+    height: 64px;
     border: 1px solid var(--line);
     border-radius: var(--radius);
     background: var(--bg-deep);
     color: var(--accent);
-    font-size: 24px;
+    font-size: 26px;
     overflow: hidden;
 }
 
@@ -1778,8 +1806,8 @@ button.card:hover {
 
 .mz-dungeon-next-copy {
     display: grid;
-    gap: 2px;
-    font-size: 13px;
+    gap: 4px;
+    font-size: 14px;
 }
 
 .mz-dungeon-next-copy strong {
@@ -1850,149 +1878,23 @@ button.card:hover {
     align-items: start;
 }
 
-.mz-map-tools {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-left: auto;
-}
-
-.mz-view-toggle,
-.mz-zoom,
-.mz-scene-tools {
+.mz-zoom {
     display: inline-flex;
     flex-wrap: wrap;
     gap: 4px;
-}
-
-.mz-view-btn.is-active {
-    border-color: var(--accent);
-    color: var(--accent-bright);
 }
 
 .mz-zoom-level {
     min-width: 54px;
 }
 
-.mz-scene {
-    position: relative;
-    min-height: 520px;
-    background: radial-gradient(ellipse at 50% 40%, var(--accent-faint), transparent 70%), var(--bg-deep);
-}
-
-.mz-scene canvas {
-    display: block;
-}
-
-.mz-scene-fallback {
-    display: grid;
-    place-content: center;
-    gap: 8px;
-    height: 100%;
-    padding: 30px;
-    text-align: center;
-}
-
-.mz-scene-tools {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    z-index: 4;
-}
-
-.mz-scene-hint,
-.mz-scene-hover {
-    position: absolute;
-    bottom: 10px;
-    left: 10px;
-    z-index: 4;
-    padding: 6px 10px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    background: color-mix(in srgb, var(--bg-deep) 88%, transparent);
-    color: var(--muted);
-    font-size: 12px;
-}
-
-.mz-scene-hover {
-    bottom: 42px;
-    color: var(--text);
-}
-
-.mz-scene-hover-go {
-    color: var(--success);
-}
-
-.mz-scene-pad {
-    position: absolute;
-    right: 10px;
-    bottom: 10px;
-    z-index: 4;
-    display: flex;
-    gap: 4px;
-}
-
-.mz-mini {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    z-index: 4;
-    display: grid;
-    justify-items: center;
-    gap: 6px;
-    padding: 8px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    background: color-mix(in srgb, var(--bg-deep) 90%, transparent);
-}
-
-.mz-mini-compass {
-    display: flex;
-    gap: 6px;
-    font-size: 12px;
-}
-
-.mz-mini-dir.is-active {
-    color: var(--accent-bright);
-    font-weight: 700;
-}
-
-.mz-mini-grid {
-    display: grid;
-    gap: 1px;
-}
-
-.mz-mini-cell {
-    border-radius: 1px;
-}
-
-.mz-mini-cell.is-reachable {
-    outline: 1px solid var(--accent);
-}
-
-.mz-mini-arrow {
-    color: var(--bg-deep);
-    font-size: 8px;
-}
-
-.mz-mini-ahead {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    color: var(--muted);
-    font-size: 12px;
-}
-
-.mz-mini-face {
-    color: var(--accent-bright);
-    font-weight: 700;
-}
-
-/* Mapa plano */
+/* Mapa 2D: vista única del descenso */
 .mz-viewport {
     position: relative;
-    min-height: 520px;
-    background: var(--bg-deep);
+    min-height: 560px;
+    background:
+        radial-gradient(ellipse at 50% 35%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 70%),
+        var(--bg-deep);
     overflow: hidden;
     touch-action: pan-y;
     cursor: grab;
@@ -2009,7 +1911,7 @@ button.card:hover {
 
 .mz-board {
     position: absolute;
-    inset: 8%;
+    inset: 9% 7%;
     transform-origin: center;
 }
 
@@ -2022,100 +1924,145 @@ button.card:hover {
 }
 
 .mz-links line {
-    stroke: var(--line);
-    stroke-width: 2;
+    stroke: var(--line-soft);
+    stroke-width: 3;
+    stroke-linecap: round;
 }
 
 .mz-links line.is-fog {
-    stroke: var(--line-soft);
-    stroke-dasharray: 3 3;
+    stroke-dasharray: 4 5;
 }
 
 .mz-node {
+    --node-color: var(--line);
+
     position: absolute;
     display: grid;
     place-items: center;
-    width: 34px;
-    height: 34px;
+    width: 42px;
+    height: 42px;
     padding: 0;
-    border: 2px solid var(--line);
-    border-radius: 50%;
-    background: var(--surface);
+    border: 2px solid var(--node-color);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--node-color) 16%, var(--surface));
     color: var(--text);
-    font-size: 14px;
+    font-size: 18px;
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--bg-deep) 70%, transparent);
     transform: translate(-50%, -50%);
+    transition: box-shadow 0.15s ease, scale 0.15s ease;
+}
+
+.mz-node:hover:not(:disabled) {
+    scale: 1.08;
 }
 
 .mz-node:disabled {
-    opacity: 0.7;
+    opacity: 0.45;
+    filter: grayscale(0.7);
+    box-shadow: none;
 }
 
 .mz-node.is-battle {
-    border-color: var(--danger);
+    --node-color: var(--node-battle);
 }
 
 .mz-node.is-camp {
-    border-color: var(--success);
+    --node-color: var(--node-camp);
 }
 
 .mz-node.is-altar {
-    border-color: var(--cyan);
+    --node-color: var(--node-altar);
 }
 
 .mz-node.is-trap {
-    border-color: #e0a45c;
+    --node-color: var(--node-trap);
 }
 
-.mz-node.is-treasure,
+.mz-node.is-treasure {
+    --node-color: var(--node-treasure);
+}
+
 .mz-node.is-boss {
-    border-color: var(--accent);
+    --node-color: var(--node-boss);
 }
 
 .mz-node.is-gospel {
-    border-color: var(--violet);
+    --node-color: var(--node-gospel);
 }
 
 .mz-node.is-current {
-    box-shadow: 0 0 0 4px var(--accent-soft);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent);
 }
 
 .mz-node.is-cleared {
-    opacity: 0.55;
+    opacity: 0.6;
 }
 
 .mz-node.is-fog {
     color: var(--muted-2);
 }
 
-.mz-node.is-reachable {
+.mz-node.is-reachable:not(:disabled) {
     border-color: var(--accent-bright);
-    box-shadow: 0 0 14px var(--accent-soft);
+    box-shadow: 0 0 0 3px var(--accent-soft), 0 0 18px var(--accent-soft);
 }
 
 .mz-node-tag {
     position: absolute;
-    top: -14px;
+    top: -18px;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: var(--accent-bright);
+    color: var(--bg-deep);
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.mz-node-label {
+    position: absolute;
+    top: calc(100% + 4px);
+    color: var(--muted);
+    font-size: 10px;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.mz-node-label.is-here {
     color: var(--accent-bright);
-    font-size: 12px;
+    font-weight: 700;
+}
+
+.mz-map-zoom {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    z-index: 3;
+    padding: 4px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: color-mix(in srgb, var(--bg-deep) 90%, transparent);
 }
 
 .mz-party {
     position: absolute;
+    z-index: 2;
     display: flex;
-    gap: 2px;
-    transform: translate(-50%, -50%);
+    gap: 3px;
+    transform: translate(-50%, -135%);
     transition: left 0.3s ease, top 0.3s ease;
 }
 
 .mz-walker {
     display: grid;
     place-items: center;
-    width: 20px;
-    height: 24px;
-    border-radius: 2px;
+    width: 22px;
+    height: 26px;
+    border: 1px solid var(--accent-soft);
+    border-radius: 4px;
     background: var(--surface-3);
     color: var(--accent-bright);
     font-size: 12px;
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--bg-deep) 80%, transparent);
     overflow: hidden;
 }
 
@@ -2166,28 +2113,31 @@ button.card:hover {
 }
 
 .mz-legend-item.is-battle span {
-    color: var(--danger);
+    color: var(--node-battle);
 }
 
 .mz-legend-item.is-camp span {
-    color: var(--success);
+    color: var(--node-camp);
 }
 
 .mz-legend-item.is-altar span {
-    color: var(--cyan);
+    color: var(--node-altar);
 }
 
 .mz-legend-item.is-trap span {
-    color: #e0a45c;
+    color: var(--node-trap);
 }
 
-.mz-legend-item.is-treasure span,
+.mz-legend-item.is-treasure span {
+    color: var(--node-treasure);
+}
+
 .mz-legend-item.is-boss span {
-    color: var(--accent);
+    color: var(--node-boss);
 }
 
 .mz-legend-item.is-gospel span {
-    color: var(--violet);
+    color: var(--node-gospel);
 }
 
 .mz-explore-bar {
@@ -2649,8 +2599,7 @@ button.card:hover {
         grid-column: 2;
     }
 
-    .mz-viewport,
-    .mz-scene {
+    .mz-viewport {
         min-height: 420px;
     }
 

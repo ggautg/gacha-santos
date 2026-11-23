@@ -52,7 +52,7 @@ function rarityPercent(item) {
 
             <div class="hero-copy">
                 <span class="eyebrow">Santo destacado · {{ featured.rarity_label }}</span>
-                <h1>{{ featured.name }}</h1>
+                <h2>{{ featured.name }}</h2>
                 <p class="epithet">{{ featured.epithet }}</p>
                 <p v-if="featured.quote" class="quote">«{{ featured.quote }}»</p>
 
@@ -93,12 +93,12 @@ function rarityPercent(item) {
                     <div class="stat-list">
                         <div class="stat-row">
                             <span class="stat-label">Santoral</span>
-                            <ProgressMeter :value="saintPercent" variant="thin" />
+                            <ProgressMeter :value="saintPercent" variant="thin" label="Santoral reunido" />
                             <span class="stat-value">{{ player.owned }}/{{ player.total }}</span>
                         </div>
                         <div class="stat-row">
                             <span class="stat-label">Mazmorras abiertas</span>
-                            <ProgressMeter :value="dungeonPercent" :variant="['thin', 'violet']" />
+                            <ProgressMeter :value="dungeonPercent" :variant="['thin', 'violet']" label="Mazmorras abiertas" />
                             <span class="stat-value">{{ player.dungeons?.open ?? 0 }}/{{ player.dungeons?.total ?? 0 }}</span>
                         </div>
                     </div>
@@ -106,8 +106,8 @@ function rarityPercent(item) {
                     <div class="modal-tags" style="margin-top: 12px">
                         <span class="tag">Piso más hondo <strong>{{ player.dungeons?.deepest ?? 0 }}</strong></span>
                         <span class="tag">Pisos limpios <strong>{{ player.dungeons?.cleared ?? 0 }}</strong></span>
-                        <span class="tag">Victorias <strong>{{ player.wins }}</strong></span>
-                        <span class="tag">Derrotas <strong>{{ player.losses }}</strong></span>
+                        <span class="tag">Victorias <strong>{{ formatNumber(player.wins) }}</strong></span>
+                        <span class="tag">Derrotas <strong>{{ formatNumber(player.losses) }}</strong></span>
                         <span class="tag">
                             Puntos de Fe <strong>{{ formatNumber(player.grace) }}</strong>
                         </span>
@@ -126,7 +126,7 @@ function rarityPercent(item) {
                                 <span class="dot" :style="{ background: item.color }"></span>
                                 {{ item.label }}
                             </span>
-                            <ProgressMeter :value="rarityPercent(item)" variant="thin" />
+                            <ProgressMeter :value="rarityPercent(item)" variant="thin" :label="`Progreso de ${item.label}`" />
                             <span class="count">{{ item.owned }}/{{ item.total }}</span>
                         </div>
                     </div>

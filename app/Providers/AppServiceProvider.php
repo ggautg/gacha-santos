@@ -4,19 +4,18 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 
+/**
+ * Proveedor base de la aplicación; no registra servicios propios.
+ */
 class AppServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     */
+    /** Registra los servicios de la aplicación. */
     public function register(): void
     {
         //
     }
 
-    /**
-     * Bootstrap any application services.
-     */
+    /** Inicializa los servicios de la aplicación. */
     public function boot(): void
     {
         //

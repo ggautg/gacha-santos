@@ -188,7 +188,7 @@ useDialogFocus(dialog, closeButton, close);
                             </div>
 
                             <div v-else class="owned-locked">
-                                <p>Aún no se te ha revelado este santo.</p>
+                                <p>Aún no tienes a este santo en tu santoral.</p>
                                 <Link href="/" class="btn btn--ghost btn--sm" style="margin-top: 10px">
                                     Ir al santuario
                                 </Link>

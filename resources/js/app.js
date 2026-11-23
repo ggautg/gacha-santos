@@ -25,7 +25,7 @@ createInertiaApp({
             .mount(el);
     },
     progress: {
-        color: getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#f2c94c',
+        color: getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#f5cf6b',
         showSpinner: false,
     },
 });

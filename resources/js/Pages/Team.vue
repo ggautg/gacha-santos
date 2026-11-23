@@ -4,6 +4,7 @@ import { Head, Link } from '@inertiajs/vue3';
 import PageHeader from '../Components/PageHeader.vue';
 import SaintCard from '../Components/SaintCard.vue';
 import { post, reportError } from '../lib/api';
+import { prefersReducedMotion } from '../lib/motion';
 import { play } from '../lib/sfx';
 import { toast } from '../lib/toast';
 
@@ -154,7 +155,10 @@ function removeAt(index) {
 }
 
 function focusRoster() {
-    rosterPanel.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    rosterPanel.value?.scrollIntoView({
+        behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+        block: 'start',
+    });
 }
 </script>
 
@@ -203,7 +207,7 @@ function focusRoster() {
                             </button>
                             <img :src="slot.art" :alt="slot.name" draggable="false" />
                             <span class="slot-name">{{ slot.name }}</span>
-                            <span class="slot-level">Nv. {{ slot.owned.level }} · Poder {{ slot.owned.power }}</span>
+                            <span class="slot-level">Nivel {{ slot.owned.level }} · Poder {{ slot.owned.power }}</span>
                         </template>
                         <template v-else>
                             <span class="slot-empty">
@@ -220,8 +224,8 @@ function focusRoster() {
                         <div class="power-value">{{ localPower }}</div>
                     </div>
                     <div style="text-align: right">
-                        <span class="panel-note" :class="{ gold: status === 'pending' }" :style="status === 'error' ? 'color: var(--danger)' : ''">
-                            {{ statusLabel }}
+                        <span class="panel-note" :class="{ gold: status === 'pending' }" :style="status === 'error' ? 'color: var(--danger)' : ''" aria-live="polite">
+                            {{ status === 'saved' ? '' : statusLabel }}
                         </span>
                         <button
                             type="button"

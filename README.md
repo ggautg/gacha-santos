@@ -1,6 +1,6 @@
 # Sanctorum
 
-Launcher de santos: gacha temático, colección, formación de equipos y descensos procedurales en mazmorras 3D/2D. Backend en Laravel 13, frontend en Vue 3 con Inertia y una hoja de estilos propia sin dependencias de CSS externas.
+Lanzador de santos: gacha temático, colección, formación de equipos y descensos procedurales en mazmorras 2D. Backend en Laravel 13, frontend en Vue 3 con Inertia y una hoja de estilos propia sin dependencias de CSS externas.
 
 ## Requisitos
 
@@ -22,7 +22,7 @@ npm run build
 composer run dev
 ```
 
-La aplicación sirve por defecto en `http://127.0.0.1:8000`. El idioma de la interfaz y de los mensajes es español (`APP_LOCALE=es`).
+La aplicación sirve por defecto en `http://127.0.0.1:8000`. El idioma de la interfaz y de los mensajes es español (`APP_LOCALE=es`). Las pruebas usan SQLite en memoria (`phpunit.xml`), así que se ejecutan sin arrancar MySQL.
 
 Para comprobar la base de datos sin imprimir credenciales:
 

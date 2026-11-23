@@ -217,8 +217,8 @@ class DungeonController extends Controller
 
         $data = $request->validate([
             'action' => ['required', 'string', 'in:rest,heal,bless,cross,avoid,open,read'],
-            'team' => ['nullable', 'array'],
-            'team.*' => ['integer'],
+            'team' => ['nullable', 'array', 'max:3'],
+            'team.*' => ['integer', 'min:1'],
         ], ValidationMessages::rules(), ValidationMessages::attributes());
 
         try {
@@ -248,7 +248,7 @@ class DungeonController extends Controller
 
         $data = $request->validate([
             'team' => ['required', 'array', 'min:1', 'max:3'],
-            'team.*' => ['integer'],
+            'team.*' => ['integer', 'min:1'],
         ], ValidationMessages::rules(), ValidationMessages::attributes());
 
         try {

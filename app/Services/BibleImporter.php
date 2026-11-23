@@ -6,12 +6,16 @@ use App\Models\GospelVerse;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
 
+/**
+ * Importa los Evangelios desde la API externa y mantiene los versículos
+ * actualizados en la tabla `gospel_verses`.
+ */
 class BibleImporter
 {
     /**
      * Descarga los capítulos de los cuatro Evangelios y guarda cada versículo.
      *
-     * @return int Número de versículos guardados o actualizados.
+     * @return int Número de versículos procesados (estable en cualquier motor).
      */
     public function importGospels(?string $translation = null): int
     {
@@ -27,6 +31,9 @@ class BibleImporter
         return $saved;
     }
 
+    /**
+     * Descarga un capítulo y devuelve cuántos versículos se procesaron.
+     */
     public function importChapter(string $translation, string $book, int $chapter): int
     {
         $url = sprintf('%s/%s/%s/%d.json', config('bible.base_url'), $translation, $book, $chapter);

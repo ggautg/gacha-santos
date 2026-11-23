@@ -2,11 +2,11 @@
 import { computed, ref, watch } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import ConfirmDialog from '../Components/ConfirmDialog.vue';
+import GraceChip from '../Components/GraceChip.vue';
 import ThemePicker from '../Components/ThemePicker.vue';
 import { useDismissable } from '../lib/dialog';
 import ToastStack from '../Components/ToastStack.vue';
 import {
-    formatNumber,
     syncPlayer,
     usePlayer,
 } from '../lib/player';
@@ -49,7 +49,7 @@ watch(
             toast.error(flash.error);
         }
     },
-    { deep: true },
+    { deep: true, immediate: true },
 );
 
 useDismissable(profileOpen, profileMenu);
@@ -105,7 +105,7 @@ function confirmResetAccount() {
                         </span>
                         <span class="brand-copy">
                             <span class="brand-name">SANCTORUM</span>
-                            <span class="brand-sub">Launcher de Santos</span>
+                            <span class="brand-sub">Lanzador de Santos</span>
                         </span>
                     </Link>
                 </div>
@@ -127,11 +127,7 @@ function confirmResetAccount() {
                 <div class="launcher-top-actions">
                     <ThemePicker />
 
-                    <span class="grace-chip" title="Puntos de Fe">
-                        <span class="coin" aria-hidden="true"></span>
-                        {{ formatNumber(player.grace) }}
-                        <span class="sr-only">Puntos de Fe</span>
-                    </span>
+                    <GraceChip :value="player.grace" />
 
                     <div ref="profileMenu" class="profile-menu">
                         <button
@@ -139,32 +135,28 @@ function confirmResetAccount() {
                             class="launcher-user profile-trigger"
                             :class="{ 'is-open': profileOpen }"
                             :aria-expanded="profileOpen"
-                            aria-haspopup="menu"
+                            aria-haspopup="true"
                             :title="`Perfil de ${player.name || 'Peregrino'}`"
                             @click="toggleProfile"
                         >
                             <span class="launcher-avatar" aria-hidden="true">{{ initial }}</span>
                             <span class="launcher-user-copy">
                                 <strong>{{ player.name || 'Peregrino' }}</strong>
-                                <span>Peregrino</span>
+                                <span>Cuenta local</span>
                             </span>
                             <svg class="profile-chevron" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
                                 <path d="M2.5 4.5 6 8l3.5-3.5" />
                             </svg>
                         </button>
 
-                        <div v-if="profileOpen" class="profile-dropdown" role="menu" aria-label="Perfil y opciones">
+                        <div v-if="profileOpen" class="profile-dropdown" role="group" aria-label="Perfil y opciones">
                             <div class="profile-dropdown-head">
                                 <span class="launcher-avatar" aria-hidden="true">{{ initial }}</span>
                                 <div class="profile-dropdown-id">
                                     <strong>{{ player.name || 'Peregrino' }}</strong>
-                                    <span>Peregrino</span>
+                                    <span>Cuenta local</span>
                                 </div>
-                                <span class="grace-chip grace-chip--sm">
-                                    <span class="coin" aria-hidden="true"></span>
-                                    {{ formatNumber(player.grace) }}
-                                    <span class="sr-only">Puntos de Fe</span>
-                                </span>
+                                <GraceChip :value="player.grace" compact />
                             </div>
 
                             <div class="profile-dropdown-foot">
@@ -183,7 +175,7 @@ function confirmResetAccount() {
                                     class="profile-action profile-action--danger"
                                     @click="resetAccount"
                                 >
-                                    Reiniciar cuenta (dev)
+                                    Reiniciar cuenta (desarrollo)
                                 </button>
                             </div>
                         </div>

@@ -31,6 +31,20 @@ class DevAccountTest extends TestCase
                 ->where('canResetAccount', true));
     }
 
+    public function test_the_reset_route_is_rejected_in_production(): void
+    {
+        $player = $this->createPlayer();
+        $token = csrf_token();
+        $this->app->detectEnvironment(fn () => 'production');
+
+        $this->post('/desarrollo/reiniciar-cuenta', ['_token' => $token])->assertNotFound();
+        $this->assertDatabaseHas('players', ['id' => $player->id]);
+
+        $this->get('/')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->where('canResetAccount', false));
+    }
+
     public function test_resetting_the_account_deletes_progress_and_starts_a_new_player(): void
     {
         $player = $this->createPlayer(['grace' => 500]);

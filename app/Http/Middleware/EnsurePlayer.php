@@ -11,8 +11,15 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\View;
 use Symfony\Component\HttpFoundation\Response;
 
+/**
+ * Resuelve al jugador de la sesión antes de ejecutar cualquier ruta.
+ *
+ * Si la sesión aún no tiene token, crea un `Player` con sus copias iniciales
+ * y guarda el token para las siguientes peticiones.
+ */
 class EnsurePlayer
 {
+    /** Adjunta el jugador a la petición y lo comparte con las vistas. */
     public function handle(Request $request, Closure $next): Response
     {
         $token = $request->session()->get('player_token');
@@ -33,6 +40,9 @@ class EnsurePlayer
         return $next($request);
     }
 
+    /**
+     * Crea el jugador, sus copias iniciales y el equipo de partida.
+     */
     private function createPlayer(): Player
     {
         return DB::transaction(function () {

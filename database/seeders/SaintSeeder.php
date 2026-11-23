@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Saint;
 use Illuminate\Database\Seeder;
 
+/** Carga el catálogo de santos con rarezas, habilidades y retratos. */
 class SaintSeeder extends Seeder
 {
     /**
@@ -29,6 +30,7 @@ class SaintSeeder extends Seeder
         'santa-odilia', 'san-fiacre', 'san-eloy',
     ];
 
+    /** Inserta o actualiza todos los santos y sus datos de presentación. */
     public function run(): void
     {
         $presets = $this->presets();

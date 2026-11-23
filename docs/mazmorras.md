@@ -28,10 +28,9 @@
 - El equipo queda fijado al salir del campamento; en el diario aparece como «Equipo fijado».
 - Reiniciar el descenso descarta el mapa actual, pero conserva récords y recompensas ya obtenidas.
 
-## Vistas
+## Vista
 
-- **3D**: escena Three.js con cámara orbital o en primera persona. Controles: `W/↑` avanzar, `S/↓` retroceder, `A/D` o `←/→` girar.
-- **Mapa**: vista 2D con zoom, arrastre y marcadores por tipo de sala.
+El descenso es 2D: un mapa con salas redondeadas por tipo, pasillos, etiqueta «Aquí» en la sala actual y chip «Ir» en las conexiones alcanzables. El grupo flotante de zoom permite alejar, acercar y centrar; con la rueda del ratón se hace zoom solo si se mantiene `Ctrl` o `⌘`, para no bloquear el desplazamiento de la página. El tablero y su interacción viven en `DungeonMap.vue`.
 
 ## Endpoints JSON
 

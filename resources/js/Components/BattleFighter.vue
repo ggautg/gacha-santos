@@ -49,7 +49,15 @@ const hpClass = computed(() => {
         <img :src="unit.sprite" :alt="unit.name" draggable="false" />
         <span class="mz-fighter-name">{{ unit.short }}</span>
         <span class="mz-fighter-lv">{{ levelLabel }}</span>
-        <div class="mz-hp" :class="hpClass">
+        <div
+            class="mz-hp"
+            :class="hpClass"
+            role="progressbar"
+            :aria-label="`Puntos de vida de ${unit.name}`"
+            :aria-valuenow="hpPercent"
+            aria-valuemin="0"
+            aria-valuemax="100"
+        >
             <span class="mz-hp-bar" :style="{ width: `${hpPercent}%` }"></span>
             <span v-if="shieldValue" class="mz-shield" :style="{ width: `${shieldPercent}%` }"></span>
         </div>

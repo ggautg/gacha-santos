@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import SaintCard from './SaintCard.vue';
 import { useDialogFocus } from '../lib/dialog';
+import { prefersReducedMotion } from '../lib/motion';
 
 const props = defineProps({
     cards: { type: Array, required: true },
@@ -14,6 +15,8 @@ const freshCount = computed(() => props.cards.filter((card) => card.is_new).leng
 const repeatedCount = computed(() => props.cards.length - freshCount.value);
 const dialog = ref(null);
 const closeButton = ref(null);
+const reduceMotion = prefersReducedMotion();
+const cardDelay = (index) => (reduceMotion ? undefined : `${index * 0.08}s`);
 
 const glowByRarity = {
     5: 'rgba(242, 201, 76, 0.28)',
@@ -64,7 +67,7 @@ useDialogFocus(dialog, closeButton, close);
                     :key="`${card.id}-${index}`"
                     class="reveal-card"
                     :class="{ 'is-five': card.rarity === 5, 'is-four': card.rarity === 4 }"
-                    :style="{ animationDelay: `${index * 0.08}s` }"
+                    :style="{ animationDelay: cardDelay(index) }"
                 >
                     <SaintCard :saint="card" :fresh="card.is_new" :interactive="false" />
                 </div>

@@ -9,16 +9,19 @@ use Illuminate\Http\Request;
 /**
  * Herramienta de desarrollo para reiniciar la cuenta de prueba.
  *
- * La ruta solo se registra fuera de producción.
+ * La ruta está registrada siempre, pero la acción se rechaza en producción:
+ * así el gate se evalúa en cada petición y no al cachear las rutas.
  */
 class DevAccountController extends Controller
 {
     /**
      * Borra la cuenta actual con todo su progreso. El middleware crea una
-     * cuenta nueva en la siguiente petición. Solo existe fuera de producción.
+     * cuenta nueva en la siguiente petición. Solo funciona fuera de producción.
      */
     public function reset(Request $request): RedirectResponse
     {
+        abort_unless(app()->environment(['local', 'testing']), 404);
+
         /** @var Player $player */
         $player = $request->attributes->get('player');
 

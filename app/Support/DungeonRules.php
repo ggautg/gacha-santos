@@ -38,6 +38,9 @@ final class DungeonRules
         );
     }
 
+    /**
+     * Indica si la mazmorra se ofrece en el listado del jugador.
+     */
     public static function isVisible(string $key): bool
     {
         return isset(self::visible()[$key]);
@@ -82,7 +85,7 @@ final class DungeonRules
             );
         } catch (QueryException $exception) {
             // Dos peticiones iniciales pueden competir por el mismo descenso.
-            if (! str_contains((string) $exception->getMessage(), 'Duplicate')) {
+            if (! self::isUniqueViolation($exception)) {
                 throw $exception;
             }
 
@@ -95,22 +98,47 @@ final class DungeonRules
     }
 
     /**
+     * Comprueba si la excepción viene de una clave única, con independencia
+     * del motor (MySQL, SQLite o PostgreSQL).
+     */
+    private static function isUniqueViolation(QueryException $exception): bool
+    {
+        $sqlState = (string) ($exception->errorInfo[0] ?? $exception->getCode());
+        $message = strtolower((string) $exception->getMessage());
+
+        return in_array($sqlState, ['23000', '23505'], true)
+            || str_contains($message, 'duplicate')
+            || str_contains($message, 'unique constraint')
+            || str_contains($message, 'duplicad');
+    }
+
+    /**
      * Reinicia el descenso con una semilla nueva sin borrar el mejor piso.
      */
     public static function restart(Player $player, string $key): DungeonRun
     {
         self::get($key);
+        self::run($player, $key);
 
-        $run = self::run($player, $key);
-        $run->seed = random_int(1, 2_147_483_647);
-        $run->floor = 1;
-        $run->route = 0;
-        $run->room = 0;
-        $run->cleared = [];
-        $run->team = [];
-        $run->vitals = [];
-        $run->blessing = 0;
-        $run->save();
+        $run = DB::transaction(function () use ($player, $key): DungeonRun {
+            /** @var DungeonRun $run */
+            $run = DungeonRun::where('player_id', $player->id)
+                ->where('dungeon', $key)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $run->seed = random_int(1, 2_147_483_647);
+            $run->floor = 1;
+            $run->route = 0;
+            $run->room = 0;
+            $run->cleared = [];
+            $run->team = [];
+            $run->vitals = [];
+            $run->blessing = 0;
+            $run->save();
+
+            return $run;
+        });
 
         return self::syncLoadout($player, $run);
     }
@@ -149,7 +177,7 @@ final class DungeonRules
             $vitals[$id] = max(0, min($hp, $max));
         }
 
-        if (self::normalizeIds($run->team) !== $team || self::normalizeVitals($run->vitals) != $vitals) {
+        if (self::normalizeIds($run->team) !== $team || self::normalizeVitals($run->vitals) !== $vitals) {
             $run->team = $team;
             $run->vitals = $vitals;
             $run->save();
@@ -239,53 +267,64 @@ final class DungeonRules
      */
     public static function setTeam(Player $player, string $key, array $ids): DungeonRun
     {
-        $run = self::run($player, $key);
-        $node = self::currentNode($player, $key, $run);
+        self::run($player, $key);
 
-        if ($node['kind'] !== 'camp') {
-            throw ValidationException::withMessages([
-                'team' => 'Solo puedes cambiar de equipo en un campamento.',
-            ]);
-        }
+        $run = DB::transaction(function () use ($player, $key, $ids): DungeonRun {
+            /** @var DungeonRun $run */
+            $run = DungeonRun::where('player_id', $player->id)
+                ->where('dungeon', $key)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        $ids = array_values(array_unique(array_map('intval', $ids)));
+            $node = self::currentNode($player, $key, $run);
 
-        if (empty($ids)) {
-            throw ValidationException::withMessages([
-                'team' => 'Elige al menos un santo antes de continuar.',
-            ]);
-        }
+            if ($node['kind'] !== 'camp') {
+                throw ValidationException::withMessages([
+                    'team' => 'Solo puedes cambiar de equipo en un campamento.',
+                ]);
+            }
 
-        if (count($ids) > 3) {
-            throw ValidationException::withMessages([
-                'team' => 'Solo puedes llevar tres santos al descenso.',
-            ]);
-        }
+            $ids = array_values(array_unique(array_map('intval', $ids)));
 
-        $copies = SaintCopy::with('saint')
-            ->where('player_id', $player->id)
-            ->whereIn('saint_id', $ids)
-            ->get()
-            ->keyBy('saint_id');
+            if ($ids === []) {
+                throw ValidationException::withMessages([
+                    'team' => 'Elige al menos un santo antes de continuar.',
+                ]);
+            }
 
-        if ($copies->count() !== count($ids)) {
-            throw ValidationException::withMessages([
-                'team' => 'Ese santo no forma parte de tu santoral.',
-            ]);
-        }
+            if (count($ids) > 3) {
+                throw ValidationException::withMessages([
+                    'team' => 'Solo puedes llevar tres santos al descenso.',
+                ]);
+            }
 
-        $stored = self::normalizeVitals($run->vitals);
-        $vitals = [];
+            $copies = SaintCopy::with('saint')
+                ->where('player_id', $player->id)
+                ->whereIn('saint_id', $ids)
+                ->get()
+                ->keyBy('saint_id');
 
-        foreach ($ids as $id) {
-            $max = max(1, (int) $copies->get($id)->stats()['hp']);
-            $hp = $stored[$id] ?? $max;
-            $vitals[$id] = max(1, min($hp, $max));
-        }
+            if ($copies->count() !== count($ids)) {
+                throw ValidationException::withMessages([
+                    'team' => 'Ese santo no forma parte de tu santoral.',
+                ]);
+            }
 
-        $run->team = $ids;
-        $run->vitals = $vitals;
-        $run->save();
+            $stored = self::normalizeVitals($run->vitals);
+            $vitals = [];
+
+            foreach ($ids as $id) {
+                $max = max(1, (int) $copies->get($id)->stats()['hp']);
+                $hp = $stored[$id] ?? $max;
+                $vitals[$id] = max(1, min($hp, $max));
+            }
+
+            $run->team = $ids;
+            $run->vitals = $vitals;
+            $run->save();
+
+            return $run;
+        });
 
         return $run;
     }
@@ -616,28 +655,38 @@ final class DungeonRules
      */
     public static function moveTo(Player $player, string $key, int $room): DungeonRun
     {
-        $run = self::run($player, $key);
-        $layout = self::layout($key, (int) $run->seed, (int) $run->floor);
-        $current = (int) $run->room;
+        self::run($player, $key);
 
-        if (! in_array($room, $layout['rooms'][$current]['links'], true)) {
-            throw ValidationException::withMessages([
-                'room' => 'Esa sala no está conectada con tu posición.',
-            ]);
-        }
+        return DB::transaction(function () use ($player, $key, $room): DungeonRun {
+            /** @var DungeonRun $run */
+            $run = DungeonRun::where('player_id', $player->id)
+                ->where('dungeon', $key)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        if (! self::roomResolved($run, $layout, $current)) {
-            throw ValidationException::withMessages([
-                'room' => 'Resuelve esta sala antes de seguir explorando.',
-            ]);
-        }
+            $layout = self::layout($key, (int) $run->seed, (int) $run->floor);
+            $current = (int) $run->room;
 
-        $run->room = $room;
-        $run->save();
+            if (! in_array($room, $layout['rooms'][$current]['links'], true)) {
+                throw ValidationException::withMessages([
+                    'room' => 'Esa sala no está conectada con tu posición.',
+                ]);
+            }
 
-        return $run;
+            if (! self::roomResolved($run, $layout, $current)) {
+                throw ValidationException::withMessages([
+                    'room' => 'Resuelve esta sala antes de seguir explorando.',
+                ]);
+            }
+
+            $run->room = $room;
+            $run->save();
+
+            return $run;
+        });
     }
 
+    /** Marca una sala como resuelta para que no vuelva a entregar recompensas. */
     public static function markRoomCleared(DungeonRun $run, int $room): DungeonRun
     {
         $cleared = array_map('intval', (array) $run->cleared);

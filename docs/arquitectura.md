@@ -26,7 +26,7 @@ No hay autenticación de usuarios: la identidad es el `Player` de la sesión.
 
 - Las resoluciones de cofre y combate son idempotentes: una sala ya resuelta no vuelve a entregar recompensas.
 - `DungeonRules::run()` envuelve la generación y el avance en transacciones con `lockForUpdate` sobre el progreso.
-- Los conflictos `Duplicate` al insertar salas se reintentan con un nuevo mapa.
+- Los conflictos de clave única al insertar salas se detectan por SQLSTATE y mensaje, de modo que funcionan igual en MySQL y en SQLite, y se reintentan con un nuevo mapa.
 - El orden de turnos se calcula una sola vez por unidad y ronda, con desempate aleatorio estable.
 - `/batalla` no escribe `$player->team`: el equipo solo se edita en campamentos.
 
@@ -50,7 +50,7 @@ Todos los modelos de `app/Models` llevan PHPDoc de entidad y de cada método pro
 | `DungeonRun` | Partida activa: semilla, sala, equipo y vida | `player()` |
 | `GospelVerse` | Versículo importado | `reference()` (p. ej. «Juan 3:16») |
 | `Player` | Identidad de la sesión sin login | `booted()` asigna UUID, `copies()`, `pulls()`, `dungeonProgress()`, `dungeonRuns()`, `battles()`, `teamIds()` |
-| `Pull` | Resultado de una oración | `saint()` |
+| `Pull` | Resultado de una oración | `saint()`, `player()` |
 | `Saint` | Catálogo, rarezas y atributos | `RARITIES`, `copies()`, `rarityLabel()`, `rarityColor()`, `basePower()`, `statsForLevel()` |
 | `SaintCopy` | Ejemplar en la colección del jugador | `player()`, `saint()`, `xpForNextLevel()`, `stats()`, `power()` |
 | `User` | Usuario autenticable reservado a tareas administrativas | `casts()`; `#[Hidden]` evita serializar `password` y `remember_token` |
@@ -68,7 +68,7 @@ Cada controlador y cada una de sus acciones tienen PHPDoc; el texto explica la r
 | `DungeonController` | `index()`, `show()`, `fight()`, `move()`, `step()`, `team()`, `restart()` y `validationError()` |
 | `GachaController` | `index()` (costes, garantía y tasas) y `pull()` (invocación 1 o 10) |
 | `SanctuaryController` | `index()` (resumen global del inicio) |
-| `TeamController` | `index()` (plantilla y equipo) y `save()` (valida propiedad y unicidad) |
+| `TeamController` | `index()` (plantilla y equipo) y `save()` (valida propiedad, IDs positivos y deduplica) |
 
 ## Contrato de errores
 
@@ -78,4 +78,23 @@ Las acciones JSON devuelven `422` con `{ "message": string, "errors": object }` 
 
 - Los PHPDoc se añadieron sin modificar firmas ni cálculos, para que la documentación no pueda cambiar el resultado de los tests.
 - La componentización Vue se limitó a código duplicado con un contrato claro (`BattleFighter`); la máquina de estados de `DungeonRun.vue` se conserva en la página porque dividirla exigiría prop drilling.
-- No se añadieron dependencias de Composer ni de npm: las necesidades se cubrieron con Vue, Inertia, Three.js y la hoja de estilos propia ya instalados.
+- No se añadieron dependencias de Composer ni de npm: las necesidades se cubrieron con Vue, Inertia y la hoja de estilos propia ya instalados. En la revisión final se retiró `three` porque el descenso pasó a ser solo 2D.
+
+## Revisión de noviembre de 2026
+
+Cambios aplicados en esta pasada, además de la documentación previa:
+
+- **Concurrencia real**: `restart()`, `setTeam()` y `moveTo()` bloquean la fila de `DungeonRun` con `lockForUpdate()` dentro de una transacción. Antes leían la partida, validaban y escribían fuera de ella; dos peticiones simultáneas podían decidir con datos obsoletos. `run()` mantiene su bloqueo sobre `DungeonProgress`.
+- **Detección de duplicados independiente del motor**: `DungeonRules::isUniqueViolation()` sustituye la búsqueda literal de `Duplicate` en el mensaje de excepción. Comprueba SQLSTATE (`23000`, `23505`) y mensajes en inglés o español.
+- **Equipo y IDs**: `TeamController` y las acciones JSON de `DungeonController` rechazan IDs menores que 1 con mensaje en español. La deduplicación sigue haciéndose en el controlador (no con `distinct`), porque la interfaz envía la selección completa y el comportamiento amable es deducir, no fallar.
+- **Mensajes de validación**: los mensajes de tamaño de `ValidationMessages` están agrupados por tipo (`min => ['numeric' => …, 'array' => …]`). Con claves planas del tipo `min.numeric`, Laravel devolvía la clave de traducción literal en lugar del texto.
+- **Ruta de desarrollo**: `/desarrollo/reiniciar-cuenta` está siempre registrada para que cachear rutas no cambie la forma de la tabla, pero `DevAccountController` rechaza la acción con `404` fuera de `local`/`testing`. `canResetAccount` evalúa el entorno en cada petición, no al registrar la ruta.
+- **Estabilidad entre motores**: `BibleImporter` devuelve el número de versículos procesados, no el recuento de filas afectadas de `upsert()` (MySQL cuenta de forma distinta según inserte o actualice).
+- **Relación y PHPDoc**: `Pull::player()` expone el autor de la oración; se documentaron `EnsurePlayer`, `HandleInertiaRequests`, `AppServiceProvider`, `BibleImporter`, `BibleImport`, `RevealSanctum` y los pobladores, además de los modelos y controladores ya cubiertos.
+- **Instalación**: `composer setup` ejecuta `migrate --force --seed` y `post-create-project-cmd` ya no crea una base SQLite: la configuración de referencia es MySQL, con `APP_LOCALE=es` en `.env.example`.
+
+## Deuda conocida y decidida
+
+- El bucle que consulta progreso por mazmorra en `SanctuaryController` y `DungeonController` hace pocas consultas (una mazmorra visible por iteración); no se ha sustituido por agregados porque el número es pequeño y las reglas viven en `DungeonRules`.
+- La clave `pity` de `config/sanctorum.php` y del contrato JSON se conserva: renombrarla rompería el cliente y la etiqueta visible ya dice «Garantía 5★».
+- La lógica de `BattleService` que simulaba daño con datos leídos antes de los bloqueos se dejó como está para no alterar el equilibrio; el commit final sí se hace con el jugador bloqueado.

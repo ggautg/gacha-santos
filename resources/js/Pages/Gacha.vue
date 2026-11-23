@@ -135,7 +135,14 @@ function closeReveal() {
                 <span>Garantía 5★</span>
                 <strong>{{ store.pity }} / {{ pityMax }}</strong>
             </div>
-            <div class="orar-pity-bar">
+            <div
+                class="orar-pity-bar"
+                role="progressbar"
+                aria-label="Garantía de santo Milagroso"
+                :aria-valuenow="pityPercent"
+                aria-valuemin="0"
+                aria-valuemax="100"
+            >
                 <span :style="{ width: `${pityPercent}%` }"></span>
             </div>
             <p class="orar-pity-note">

@@ -24,4 +24,10 @@ class Pull extends Model
     {
         return $this->belongsTo(Saint::class);
     }
+
+    /** Jugador que hizo la oración. */
+    public function player(): BelongsTo
+    {
+        return $this->belongsTo(Player::class);
+    }
 }

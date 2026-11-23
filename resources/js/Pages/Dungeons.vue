@@ -78,9 +78,6 @@ defineProps({
                         </template>
                     </div>
 
-                    <div class="mz-progress">
-                        <span :style="{ width: `${Math.min(100, dungeon.best_floor * 10)}%` }"></span>
-                    </div>
                     <div class="mz-progress-note">
                         <span>Mejor piso · {{ dungeon.best_floor }}</span>
                         <span>{{ dungeon.cleared }} limpios</span>

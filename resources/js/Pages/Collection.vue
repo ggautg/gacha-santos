@@ -125,7 +125,7 @@ async function levelUp(saint) {
                     <span>Progreso del santoral</span>
                     <strong>{{ ownedCount }} / {{ total }}</strong>
                 </div>
-                <ProgressMeter :value="percent" />
+                <ProgressMeter :value="percent" label="Santoral revelado" />
                 <p class="panel-note" style="margin-top: 6px">
                     {{ percent }}% de los santos revelados · {{ formatNumber(store.grace) }} Puntos de Fe
                 </p>

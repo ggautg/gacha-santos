@@ -18,9 +18,14 @@ final class ValidationMessages
             'integer' => 'Este campo debe ser un número entero.',
             'array' => 'Este campo debe ser una lista.',
             'in' => 'El valor seleccionado no es válido.',
-            'min.numeric' => 'El valor debe ser al menos :min.',
-            'min.array' => 'Debe incluir al menos :min elementos.',
-            'max.array' => 'No puede incluir más de :max elementos.',
+            // Laravel espera los mensajes de tamaño agrupados por tipo de atributo.
+            'min' => [
+                'numeric' => 'El valor debe ser al menos :min.',
+                'array' => 'Debe incluir al menos :min elementos.',
+            ],
+            'max' => [
+                'array' => 'No puede incluir más de :max elementos.',
+            ],
         ];
     }
 

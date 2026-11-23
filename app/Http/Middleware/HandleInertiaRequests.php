@@ -6,21 +6,16 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Middleware;
 
+/**
+ * Comparte con Inertia el jugador, los avisos y las opciones de desarrollo.
+ */
 class HandleInertiaRequests extends Middleware
 {
-    /**
-     * The root template that's loaded on the first page visit.
-     *
-     * @see https://inertiajs.com/server-side-setup#root-template
-     *
-     * @var string
-     */
+    /** Plantilla Blade que se carga en la primera visita. */
     protected $rootView = 'app';
 
     /**
-     * Determines the current asset version.
-     *
-     * @see https://inertiajs.com/asset-versioning
+     * Versión de los recursos para forzar la recarga cuando cambian.
      */
     public function version(Request $request): ?string
     {
@@ -28,9 +23,7 @@ class HandleInertiaRequests extends Middleware
     }
 
     /**
-     * Define the props that are shared by default.
-     *
-     * @see https://inertiajs.com/shared-data
+     * Propiedades disponibles en todas las páginas Vue.
      *
      * @return array<string, mixed>
      */
@@ -47,7 +40,7 @@ class HandleInertiaRequests extends Middleware
                 'wins' => $player->wins,
                 'losses' => $player->losses,
             ] : null,
-            'canResetAccount' => Route::has('dev.account.reset'),
+            'canResetAccount' => app()->environment(['local', 'testing']) && Route::has('dev.account.reset'),
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),

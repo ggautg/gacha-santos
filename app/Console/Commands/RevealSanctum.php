@@ -18,7 +18,7 @@ class RevealSanctum extends Command
     private const PRAYER = 'UGFkcmUgbnVlc3RybywgcXVlIGVzdMOhcyBlbiBlbCBjaWVsbywgc2FudGlmaWNhZG8gc2VhIHR1IG5vbWJyZS4gVmVuZ2EgdHUgcmVpbm8uIEjDoWdhc2UgdHUgdm9sdW50YWQsIGVuIGxhIHRpZXJyYSBjb21vIGVuIGVsIGNpZWxvLiBEYW5vcyBob3kgbnVlc3RybyBwYW4gZGUgY2FkYSBkw61hLiBQZXJkb25hIG51ZXN0cmFzIG9mZW5zYXMsIGNvbW8gdGFtYmnDqW4gbm9zb3Ryb3MgcGVyZG9uYW1vcyBhIGxvcyBxdWUgbm9zIG9mZW5kZW4uIE5vIG5vcyBkZWplcyBjYWVyIGVuIHRlbnRhY2nDs24sIHkgbMOtYnJhbm9zIGRlbCBtYWwuIEFtw6luLg==';
 
     /**
-     * Execute the console command.
+     * Muestra el Padre Nuestro guardado en el comando oculto.
      */
     public function handle(): int
     {

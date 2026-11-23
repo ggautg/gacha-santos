@@ -84,7 +84,7 @@ useDismissable(open, picker);
                     <span class="theme-swatches" aria-hidden="true">
                         <span :style="{ background: theme.accent }"></span>
                         <span :style="{ background: theme.accent2 }"></span>
-                        <span :style="{ background: theme.ink }"></span>
+                        <span :style="{ background: theme.surface }"></span>
                     </span>
                     <strong>{{ theme.name }}</strong>
                     <span class="theme-picker-note">{{ theme.note }}</span>

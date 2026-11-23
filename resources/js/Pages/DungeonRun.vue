@@ -1,18 +1,17 @@
 <script setup>
-import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import BattleFighter from '../Components/BattleFighter.vue';
 import ConfirmDialog from '../Components/ConfirmDialog.vue';
+import DungeonMap from '../Components/DungeonMap.vue';
 import SaintCard from '../Components/SaintCard.vue';
 import { post, reportError } from '../lib/api';
 import { nodeGlyph, nodeHint, nodeKinds, nodeLabel, nodeStatus } from '../lib/dungeonNodes';
 import { prefersReducedMotion } from '../lib/motion';
-import { patchPlayer } from '../lib/player';
+import { formatNumber, patchPlayer } from '../lib/player';
 import { play } from '../lib/sfx';
 import { useTemporaryTheme } from '../lib/theme';
 import { toast } from '../lib/toast';
-
-const DungeonScene = defineAsyncComponent(() => import('../Components/DungeonScene.vue'));
 
 const props = defineProps({
     dungeon: { type: Object, required: true },
@@ -61,103 +60,12 @@ const choosing = ref(false);
 const stepping = ref(false);
 const teamSaving = ref(false);
 const logBox = ref(null);
+const logPinned = ref(true);
+const skipButton = ref(null);
 const rosterPanel = ref(null);
 const rosterOpen = ref(props.teamIds.length === 0);
 const walking = ref(false);
 const journalTab = ref('equipo');
-
-const ZOOM_MIN = 1;
-const ZOOM_MAX = 2.5;
-const zoom = ref(1);
-const pan = reactive({ x: 0, y: 0 });
-const drag = reactive({ active: false, x: 0, y: 0 });
-const view = ref(readSavedView());
-
-function readSavedView() {
-    try {
-        return window.localStorage.getItem('sanctorum:dungeon-view') === '2d' ? '2d' : '3d';
-    } catch {
-        return '3d';
-    }
-}
-
-function setView(mode) {
-    if (view.value === mode) {
-        return;
-    }
-
-    view.value = mode;
-
-    try {
-        window.localStorage.setItem('sanctorum:dungeon-view', mode);
-    } catch {
-        // Sin almacenamiento: la preferencia vive solo en esta visita.
-    }
-
-    play('click');
-}
-
-function fallbackToMap() {
-    setView('2d');
-    toast.info('La vista 3D no está disponible; se muestra el mapa plano.');
-}
-
-const boardStyle = computed(() => ({
-    aspectRatio: boardRatio.value,
-    transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom.value})`,
-}));
-
-function setZoom(value) {
-    zoom.value = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(value * 100) / 100));
-
-    if (zoom.value <= 1) {
-        pan.x = 0;
-        pan.y = 0;
-    }
-}
-
-function zoomBy(step) {
-    setZoom(zoom.value + step);
-}
-
-function resetView() {
-    zoom.value = 1;
-    pan.x = 0;
-    pan.y = 0;
-}
-
-function onWheel(event) {
-    if (!event.ctrlKey && !event.metaKey) {
-        return;
-    }
-
-    event.preventDefault();
-    zoomBy(event.deltaY < 0 ? 0.2 : -0.2);
-}
-
-function onDragStart(event) {
-    if (zoom.value <= 1 || event.button !== 0) {
-        return;
-    }
-
-    drag.active = true;
-    drag.x = event.clientX - pan.x;
-    drag.y = event.clientY - pan.y;
-    event.currentTarget.setPointerCapture(event.pointerId);
-}
-
-function onDragMove(event) {
-    if (!drag.active) {
-        return;
-    }
-
-    pan.x = event.clientX - drag.x;
-    pan.y = event.clientY - drag.y;
-}
-
-function onDragEnd() {
-    drag.active = false;
-}
 
 let runToken = 0;
 let floatKey = 0;
@@ -182,46 +90,13 @@ const canChoose = computed(
     () => phase.value !== 'running' && !choosing.value && !stepping.value && !submitting.value,
 );
 const mapRooms = computed(() => mapState.value.rooms ?? []);
-const roomById = computed(() => new Map(mapRooms.value.map((room) => [room.id, room])));
-const currentRoom = computed(() => roomById.value.get(mapState.value.room) ?? null);
 const clearedCount = computed(() => mapRooms.value.filter((room) => room.cleared).length);
 const currentCleared = computed(() => mapRooms.value.find((room) => room.current)?.cleared ?? false);
-const boardRatio = computed(() => `${mapState.value.width ?? 9} / ${mapState.value.height ?? 3}`);
 
 const exploredPercent = computed(() => {
     const total = mapRooms.value.length;
 
     return total > 0 ? Math.round((clearedCount.value / total) * 100) : 0;
-});
-
-const walkerX = computed(() => cellX(currentRoom.value?.x ?? 0));
-const walkerY = computed(() => cellY(currentRoom.value?.y ?? 0));
-
-const corridors = computed(() => {
-    const segments = [];
-    const drawn = new Set();
-
-    for (const room of mapRooms.value) {
-        for (const otherId of room.links) {
-            const other = roomById.value.get(otherId);
-            const key = `${Math.min(room.id, otherId)}-${Math.max(room.id, otherId)}`;
-
-            if (!other || drawn.has(key)) {
-                continue;
-            }
-
-            drawn.add(key);
-            segments.push({
-                x1: room.x + 0.5,
-                y1: room.y + 0.5,
-                x2: other.x + 0.5,
-                y2: other.y + 0.5,
-                fog: !other.known,
-            });
-        }
-    }
-
-    return segments;
 });
 
 const statusText = computed(() => {
@@ -251,22 +126,6 @@ const mapHint = computed(() => {
         ? 'Elige una sala conectada. El jefe se esconde en algún rincón del laberinto.'
         : 'Presenta batalla para despejar la sala y poder seguir explorando.';
 });
-
-function cellX(x) {
-    return ((x + 0.5) / (mapState.value.width || 1)) * 100;
-}
-
-function cellY(y) {
-    return ((y + 0.5) / (mapState.value.height || 1)) * 100;
-}
-
-function roomLabel(room) {
-    return room.known ? nodeLabel(room.kind) : 'Sin explorar';
-}
-
-function roomGlyph(room) {
-    return room.known ? nodeGlyph(room.kind) : '?';
-}
 
 function shortName(name) {
     return String(name ?? '').replace(/^(San|Santa|Santo|Beato|Beata)\s+/u, '');
@@ -690,7 +549,10 @@ function focusRoster() {
     rosterOpen.value = true;
     journalTab.value = 'equipo';
     nextTick(() => {
-        rosterPanel.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        rosterPanel.value?.scrollIntoView({
+            behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+            block: 'start',
+        });
     });
 }
 
@@ -893,9 +755,20 @@ async function startFight() {
     }
 }
 
+function switchTab(direction) {
+    const tabs = ['equipo', 'cronicas'];
+    const index = tabs.indexOf(journalTab.value);
+    journalTab.value = tabs[(index + direction + tabs.length) % tabs.length];
+
+    nextTick(() => {
+        document.querySelector(`#mz-tab-${journalTab.value}`)?.focus();
+    });
+}
+
 function focusEncounter() {
     nextTick(() => {
-        document.querySelector('.mz-encounter .mz-btn:not([disabled])')?.focus();
+        const target = skipButton.value ?? document.querySelector('.mz-encounter .mz-btn:not([disabled])');
+        target?.focus();
     });
 }
 
@@ -943,11 +816,19 @@ watch(
     () => logEntries.value.length,
     async () => {
         await nextTick();
-        if (logBox.value) {
+        if (logPinned.value && logBox.value) {
             logBox.value.scrollTop = logBox.value.scrollHeight;
         }
     },
 );
+
+function trackLogScroll() {
+    const box = logBox.value;
+
+    if (box) {
+        logPinned.value = box.scrollHeight - box.scrollTop - box.clientHeight < 40;
+    }
+}
 
 const restoreTheme = useTemporaryTheme(props.dungeon.theme);
 
@@ -1008,13 +889,13 @@ const logClass = (entry) => {
                     <span class="mz-stat">Récord <strong>{{ bestFloor }}</strong></span>
                     <span class="mz-stat mz-stat--gold">
                         <span class="coin" aria-hidden="true"></span>
-                        <strong>{{ grace }}</strong>
+                        <strong>{{ formatNumber(grace) }}</strong>
                     </span>
                     <span v-if="blessing > 0" class="mz-stat mz-stat--teal">
                         <strong>+{{ blessing }}%</strong> de ataque
                     </span>
                 </div>
-                <button type="button" class="mz-btn mz-btn--ghost mz-btn--sm" :disabled="phase === 'running'" @click="restartRun">
+                <button type="button" class="mz-btn mz-btn--ghost mz-btn--sm" :disabled="phase === 'running' || choosing || stepping || submitting || teamSaving" @click="restartRun">
                     Reiniciar descenso
                 </button>
             </div>
@@ -1025,115 +906,15 @@ const logClass = (entry) => {
                 <header class="mz-panel-head">
                     <h2 class="mz-panel-title">Laberinto del piso {{ runFloor }}</h2>
                     <span class="mz-panel-note">{{ statusText }}</span>
-                    <div class="mz-map-tools">
-                        <div class="mz-view-toggle" role="group" aria-label="Vista del laberinto">
-                            <button
-                                type="button"
-                                class="mz-btn mz-btn--ghost mz-btn--sm mz-view-btn"
-                                :class="{ 'is-active': view === '3d' }"
-                                :aria-pressed="view === '3d'"
-                                title="Vista 3D del laberinto"
-                                @click="setView('3d')"
-                            >
-                                3D
-                            </button>
-                            <button
-                                type="button"
-                                class="mz-btn mz-btn--ghost mz-btn--sm mz-view-btn"
-                                :class="{ 'is-active': view === '2d' }"
-                                :aria-pressed="view === '2d'"
-                                title="Mapa plano del laberinto"
-                                @click="setView('2d')"
-                            >
-                                Mapa
-                            </button>
-                        </div>
-                        <div v-if="view === '2d'" class="mz-zoom" role="group" aria-label="Zoom del laberinto">
-                            <button type="button" class="mz-btn mz-btn--ghost mz-btn--sm" aria-label="Alejar" :disabled="zoom <= ZOOM_MIN" @click="zoomBy(-0.2)">−</button>
-                            <button type="button" class="mz-btn mz-btn--ghost mz-btn--sm mz-zoom-level" title="Restablecer vista" @click="resetView">
-                                {{ Math.round(zoom * 100) }}%
-                            </button>
-                            <button type="button" class="mz-btn mz-btn--ghost mz-btn--sm" aria-label="Acercar" :disabled="zoom >= ZOOM_MAX" @click="zoomBy(0.2)">+</button>
-                        </div>
-                    </div>
                 </header>
 
-                <Suspense v-if="view === '3d'">
-                    <DungeonScene
-                        :map="mapState"
-                        :team="teamCards"
-                        :accent="dungeon.accent"
-                        :accent2="dungeon.accent2"
-                        :walking="walking"
-                        :can-choose="canChoose"
-                        @move="moveTo"
-                        @unsupported="fallbackToMap"
-                    />
-                    <template #fallback>
-                        <div class="mz-scene mz-scene-fallback">
-                            <p>Preparando la escena…</p>
-                        </div>
-                    </template>
-                </Suspense>
-
-                <div
-                    v-else
-                    class="mz-viewport"
-                    :class="{ 'is-zoomed': zoom > 1, 'is-dragging': drag.active }"
-                    @wheel="onWheel"
-                    @pointerdown="onDragStart"
-                    @pointermove="onDragMove"
-                    @pointerup="onDragEnd"
-                    @pointercancel="onDragEnd"
-                >
-                    <div class="mz-board" :class="{ 'is-dragging': drag.active }" :style="boardStyle">
-                        <svg class="mz-links" :viewBox="`0 0 ${mapState.width} ${mapState.height}`" preserveAspectRatio="none" aria-hidden="true">
-                            <line
-                                v-for="(segment, index) in corridors"
-                                :key="index"
-                                :class="{ 'is-fog': segment.fog }"
-                                :x1="segment.x1"
-                                :y1="segment.y1"
-                                :x2="segment.x2"
-                                :y2="segment.y2"
-                            />
-                        </svg>
-
-                        <button
-                            v-for="room in mapRooms"
-                            :key="room.id"
-                            type="button"
-                            class="mz-node"
-                            :class="{
-                                'is-current': room.current,
-                                'is-cleared': room.cleared,
-                                'is-fog': !room.known,
-                                'is-reachable': room.reachable,
-                                [`is-${room.kind}`]: room.known,
-                            }"
-                            :style="{ left: `${cellX(room.x)}%`, top: `${cellY(room.y)}%` }"
-                            :disabled="!room.reachable || !canChoose"
-                            :aria-label="roomLabel(room)"
-                            :title="roomLabel(room)"
-                            @click="moveTo(room)"
-                        >
-                            <span class="mz-node-glyph" aria-hidden="true">{{ roomGlyph(room) }}</span>
-                            <span v-if="room.reachable" class="mz-node-tag">Ir</span>
-                        </button>
-
-                        <div
-                            class="mz-party"
-                            :class="{ 'is-walking': walking }"
-                            :style="{ left: `${walkerX}%`, top: `${walkerY}%` }"
-                            aria-hidden="true"
-                        >
-                            <span v-for="card in teamCards" :key="card.id" class="mz-walker">
-                                <img :src="card.art" :alt="card.name" draggable="false" />
-                            </span>
-                            <span v-if="teamCards.length === 0" class="mz-walker mz-walker--empty">+</span>
-                        </div>
-                    </div>
-                </div>
+                <DungeonMap
+                    :map="mapState"
+                    :team="teamCards"
+                    :walking="walking"
+                    :can-choose="canChoose"
+                    @move="moveTo"
+                />
 
                 <footer class="mz-map-foot">
                     <div class="mz-legend">
@@ -1145,7 +926,14 @@ const logClass = (entry) => {
 
                     <div class="mz-explore">
                         <span class="mz-explore-label">Despejado</span>
-                        <div class="mz-explore-bar">
+                        <div
+                            class="mz-explore-bar"
+                            role="progressbar"
+                            aria-label="Salas despejadas"
+                            :aria-valuenow="exploredPercent"
+                            aria-valuemin="0"
+                            aria-valuemax="100"
+                        >
                             <span :style="{ width: `${exploredPercent}%` }"></span>
                         </div>
                         <strong>{{ clearedCount }}/{{ mapRooms.length }}</strong>
@@ -1153,7 +941,7 @@ const logClass = (entry) => {
 
                     <p class="mz-hint">{{ mapHint }}</p>
 
-                    <button v-if="phase === 'running'" type="button" class="mz-btn mz-btn--ghost mz-btn--sm" @click="skipAnimation">
+                    <button v-if="phase === 'running'" ref="skipButton" type="button" class="mz-btn mz-btn--ghost mz-btn--sm" @click="skipAnimation">
                         Saltar animación
                     </button>
                 </footer>
@@ -1206,8 +994,8 @@ const logClass = (entry) => {
                         </div>
 
                         <div class="mz-result-rewards">
-                            <span>Fe <strong>+{{ result.rewards.grace }}</strong></span>
-                            <span>XP <strong>+{{ result.rewards.xp }}</strong></span>
+                            <span>Puntos de Fe <strong>+{{ formatNumber(result.rewards.grace) }}</strong></span>
+                            <span>Experiencia <strong>+{{ formatNumber(result.rewards.xp) }}</strong></span>
                             <span v-if="result.levels?.length" class="mz-levels">
                                 Suben: {{ result.levels.map((level) => level.name).join(', ') }}
                             </span>
@@ -1346,7 +1134,7 @@ const logClass = (entry) => {
                         <h2 class="mz-panel-title">Crónica del combate</h2>
                     </header>
                     <div class="mz-panel-body">
-                        <div ref="logBox" class="mz-log" :aria-live="phase === 'done' ? 'polite' : 'off'">
+                        <div ref="logBox" class="mz-log" aria-live="polite" aria-relevant="additions" @scroll="trackLogScroll">
                             <p v-if="logEntries.length === 0" class="mz-note">La crónica aparecerá al presentar batalla.</p>
                             <div
                                 v-for="entry in logEntries"
@@ -1366,24 +1154,30 @@ const logClass = (entry) => {
         <section class="mz-panel mz-journal">
             <header class="mz-panel-head">
                 <h2 class="mz-panel-title">Diario</h2>
-                <div class="mz-tabs" role="tablist" aria-label="Diario del descenso">
+                <div class="mz-tabs" role="tablist" aria-label="Diario del descenso" @keydown.left="switchTab(-1)" @keydown.right="switchTab(1)">
                     <button
+                        id="mz-tab-equipo"
                         type="button"
                         class="mz-tab"
                         role="tab"
+                        aria-controls="mz-panel-equipo"
                         :class="{ 'is-active': journalTab === 'equipo' }"
                         :aria-selected="journalTab === 'equipo'"
+                        :tabindex="journalTab === 'equipo' ? 0 : -1"
                         @click="journalTab = 'equipo'"
                     >
                         Equipo
                         <span class="mz-tab-count">{{ team.length }}/3</span>
                     </button>
                     <button
+                        id="mz-tab-cronicas"
                         type="button"
                         class="mz-tab"
                         role="tab"
+                        aria-controls="mz-panel-cronicas"
                         :class="{ 'is-active': journalTab === 'cronicas' }"
                         :aria-selected="journalTab === 'cronicas'"
+                        :tabindex="journalTab === 'cronicas' ? 0 : -1"
                         @click="journalTab = 'cronicas'"
                     >
                         Crónicas recientes
@@ -1392,7 +1186,14 @@ const logClass = (entry) => {
                 </div>
             </header>
 
-            <div v-show="journalTab === 'equipo'" ref="rosterPanel" class="mz-journal-body mz-team-pane">
+            <div
+                v-show="journalTab === 'equipo'"
+                id="mz-panel-equipo"
+                ref="rosterPanel"
+                class="mz-journal-body mz-team-pane"
+                role="tabpanel"
+                aria-labelledby="mz-tab-equipo"
+            >
                 <div class="mz-panel-body">
                     <div class="mz-slots">
                         <div
@@ -1478,13 +1279,19 @@ const logClass = (entry) => {
                         <Link href="/" class="mz-btn mz-btn--sm" @click="play('click')">Ir al santuario</Link>
                     </div>
 
-                    <button type="button" class="mz-rift" :disabled="phase === 'running'" @click="restartRun">
+                    <button type="button" class="mz-rift" :disabled="phase === 'running' || choosing || stepping || submitting || teamSaving" @click="restartRun">
                         Reiniciar el descenso
                     </button>
                 </div>
             </div>
 
-            <div v-show="journalTab === 'cronicas'" class="mz-journal-body mz-history-body">
+            <div
+                v-show="journalTab === 'cronicas'"
+                id="mz-panel-cronicas"
+                class="mz-journal-body mz-history-body"
+                role="tabpanel"
+                aria-labelledby="mz-tab-cronicas"
+            >
                 <p v-if="history.length === 0" class="mz-note">Aún no has descendido. Tus batallas aparecerán aquí.</p>
                 <div v-for="(entry, index) in history" :key="index" class="mz-history-row">
                     <span class="mz-res" :class="entry.result === 'win' ? 'is-win' : 'is-lose'">

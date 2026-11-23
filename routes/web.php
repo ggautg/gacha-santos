@@ -34,6 +34,6 @@ Route::post('/mazmorras/{dungeon}/paso', [DungeonController::class, 'step'])->na
 Route::post('/mazmorras/{dungeon}/equipo', [DungeonController::class, 'team'])->name('dungeons.team');
 Route::post('/mazmorras/{dungeon}/reiniciar', [DungeonController::class, 'restart'])->name('dungeons.restart');
 
-if (app()->environment(['local', 'testing'])) {
-    Route::post('/desarrollo/reiniciar-cuenta', [DevAccountController::class, 'reset'])->name('dev.account.reset');
-}
+// La ruta existe siempre para que las rutas cacheadas no cambien de forma,
+// pero el controlador la rechaza fuera de local/testing.
+Route::post('/desarrollo/reiniciar-cuenta', [DevAccountController::class, 'reset'])->name('dev.account.reset');

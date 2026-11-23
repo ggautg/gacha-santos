@@ -16,10 +16,18 @@ useDialogFocus(dialog, cancelButton, () => emit('cancel'));
 
 <template>
     <Teleport to="body">
-        <div ref="dialog" class="overlay" role="alertdialog" aria-modal="true" aria-label="Confirmar acción" @click.self="emit('cancel')">
+        <div
+            ref="dialog"
+            class="overlay"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="confirm-dialog-title"
+            aria-describedby="confirm-dialog-message"
+            @click.self="emit('cancel')"
+        >
             <div class="modal" style="--rarity: var(--danger)">
-                <h2 class="modal-name">Confirma la acción</h2>
-                <p class="modal-note">{{ message }}</p>
+                <h2 id="confirm-dialog-title" class="modal-name">Confirma la acción</h2>
+                <p id="confirm-dialog-message" class="modal-note">{{ message }}</p>
 
                 <div class="btn-row modal-confirm-actions">
                     <button ref="cancelButton" type="button" class="btn btn--ghost" @click="emit('cancel')">Cancelar</button>
