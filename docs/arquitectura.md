@@ -7,7 +7,7 @@
 3. El servicio devuelve un array de datos; el controlador responde JSON o renderiza una página Inertia.
 4. `HandleInertiaRequests` comparte `player`, `flash` y `canResetAccount` con Vue.
 
-No hay autenticación de usuarios: la identidad es el `Player` de la sesión.
+Actualmente no hay autenticación de usuarios: la identidad es el `Player` de la sesión. El estado objetivo es autenticación real, según [ADR-001](#adr-001--identidad-y-autenticación-2026-11-26).
 
 ## Capas
 
@@ -98,3 +98,12 @@ Cambios aplicados en esta pasada, además de la documentación previa:
 - El bucle que consulta progreso por mazmorra en `SanctuaryController` y `DungeonController` hace pocas consultas (una mazmorra visible por iteración); no se ha sustituido por agregados porque el número es pequeño y las reglas viven en `DungeonRules`.
 - La clave `pity` de `config/sanctorum.php` y del contrato JSON se conserva: renombrarla rompería el cliente y la etiqueta visible ya dice «Garantía 5★».
 - La lógica de `BattleService` que simulaba daño con datos leídos antes de los bloqueos se dejó como está para no alterar el equilibrio; el commit final sí se hace con el jugador bloqueado.
+
+## ADR-001 — Identidad y autenticación (2026-11-26)
+
+- **Estado**: Aceptada; implementación prevista en la Fase 2 del plan de remediación (`audit/08-plan-de-remediacion.md`, acción 2.5).
+- **Responsable**: Producto + Arquitectura; decisión registrada por el usuario el 2026-11-26.
+- **Contexto**: el hallazgo `SEC-001` describe que la identidad depende hoy de una cookie de sesión sin autenticación. Cualquier persona que obtenga o reutilice esa cookie controla el `Player`, y el progreso no puede reclamarse desde otro dispositivo.
+- **Decisión**: migrar a autenticación real (registro e inicio de sesión) y vincular cada `Player` a una cuenta de usuario. Hasta que exista, la sesión actual se conserva como mecanismo transitorio con controles compensatorios: cookie `HttpOnly`, `SameSite=Lax` y `Secure` en producción; ninguna acción privilegiada dependerá solo de la cookie; aviso visible de que limpiar cookies pierde el progreso.
+- **Consecuencias**: harán falta migraciones, middleware de autenticación, cambios en `EnsurePlayer`, `HandleInertiaRequests` y en la interfaz de acceso, además de pruebas de propiedad de cuenta. La migración de partidas anónimas existentes se diseñará antes de borrar el mecanismo actual.
+- **Alternativa rechazada**: mantener la cuenta local sin login. Reduce el trabajo inmediato, pero deja el riesgo `SEC-001` abierto y contradice la decisión de producto registrada aquí.
